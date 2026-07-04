@@ -410,6 +410,10 @@ input,textarea{-webkit-user-select:text!important;user-select:text!important;}
         </select>
       </div>
       <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Créditos cobrados por entrega (R$)</div><div class="config-item-sub">Descontado do restaurante quando um motoboy aceita</div></div>
+        <input class="config-input-inline" id="cfg-custo-credito-rest" type="number" value="1" step="0.5" min="0"/>
+      </div>
+      <div class="config-item">
         <div class="config-item-info"><div class="config-item-titulo">Valor da mensalidade (R$)</div></div>
         <input class="config-input-inline" id="cfg-valor-mensalidade" type="number" value="0" step="10" min="0"/>
       </div>
@@ -1244,6 +1248,7 @@ async function carregarConfigs(){
       document.getElementById("cfg-modelo-cobranca").value=configs.modeloCobranca||"mensalidade";
       document.getElementById("cfg-valor-mensalidade").value=configs.valorMensalidade!==undefined?configs.valorMensalidade:0;
       document.getElementById("cfg-alerta-saldo").value=configs.alertaSaldoBaixo!==undefined?configs.alertaSaldoBaixo:10;
+      document.getElementById("cfg-custo-credito-rest").value=configs.custoCreditoRestaurante!==undefined?configs.custoCreditoRestaurante:1;
       if(configs.pin)pinAtual=configs.pin;
     }
   }catch(e){}
@@ -1270,7 +1275,8 @@ async function salvarConfigCobrancaRestaurante(){
     const dados={
       modeloCobranca:document.getElementById("cfg-modelo-cobranca").value,
       valorMensalidade:parseFloat(document.getElementById("cfg-valor-mensalidade").value)||0,
-      alertaSaldoBaixo:parseFloat(document.getElementById("cfg-alerta-saldo").value)||0
+      alertaSaldoBaixo:parseFloat(document.getElementById("cfg-alerta-saldo").value)||0,
+      custoCreditoRestaurante:parseFloat(document.getElementById("cfg-custo-credito-rest").value)||0
     };
     Object.assign(configs,dados);
     await db.collection("ej_config").doc("geral").set(dados,{merge:true});
