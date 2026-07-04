@@ -1,0 +1,2147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Entrega Já – Painel</title>
+<meta name="theme-color" content="#0f1a2e"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="EJ Painel"/>
+<link rel="manifest" id="manifest-link"/>
+<link rel="apple-touch-icon" id="apple-icon"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --roxo:#fbbf24;--roxo-escuro:#b45309;--roxo-claro:#f59e0b;
+  --indigo:#3b82f6;--ciano:#60a5fa;
+  --bg:#080f1e;--bg2:#0d1730;--card:#0f1a2e;--card2:#1a2540;
+  --border:rgba(251,191,36,0.2);--text:#f0e6c8;--muted:#7a8fa8;
+  --success:#22c55e;--danger:#ef4444;--warn:#f59e0b;--laranja:#f97316;
+  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;background:var(--bg);font-family:-apple-system,'Helvetica Neue',sans-serif;color:var(--text);overflow:hidden;touch-action:pan-x pan-y;-webkit-user-select:none;user-select:none;}
+input,textarea{-webkit-user-select:text!important;user-select:text!important;}
+.screen{display:none;position:fixed;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;flex-direction:column;}
+.screen.ativo{display:flex;}
+@keyframes gira{from{transform:translate(-50%,-50%) rotate(0deg);}to{transform:translate(-50%,-50%) rotate(360deg);}}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+
+/* CANVAS PARTÍCULAS */
+#cv{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;display:block;}
+
+/* SPLASH */
+#tela-splash{align-items:center;justify-content:center;gap:20px;position:relative;z-index:1;}
+.splash-logo{width:130px;height:130px;border-radius:32px;overflow:hidden;box-shadow:0 0 60px rgba(251,191,36,0.5);animation:logoPulse 2s ease-in-out infinite;}
+.splash-logo img{width:100%;height:100%;object-fit:cover;}
+@keyframes logoPulse{0%,100%{box-shadow:0 0 60px rgba(251,191,36,0.5);}50%{box-shadow:0 0 90px rgba(251,191,36,0.7);}}
+.splash-title{font-size:30px;font-weight:900;color:#fff;text-align:center;line-height:1.2;}
+.splash-title span{background:linear-gradient(135deg,var(--ciano),var(--roxo-claro));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.splash-sub{font-size:14px;color:var(--muted);text-align:center;}
+.splash-loader{width:48px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-top:8px;}
+.splash-loader::after{content:'';display:block;height:100%;width:40%;background:linear-gradient(90deg,var(--ciano),var(--roxo));border-radius:2px;animation:loader 1.2s ease-in-out infinite;}
+@keyframes loader{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
+
+/* LOGIN */
+#tela-login{align-items:center;justify-content:center;padding:40px 24px;min-height:100%;padding-top:max(40px,var(--sat));position:relative;z-index:1;}
+.login-box{width:100%;max-width:380px;display:flex;flex-direction:column;gap:20px;align-items:center;}
+.login-logo{width:88px;height:88px;border-radius:22px;overflow:hidden;box-shadow:0 8px 32px rgba(251,191,36,0.4);}
+.login-logo img{width:100%;height:100%;object-fit:cover;}
+.login-titulo{font-size:24px;font-weight:900;color:#fff;text-align:center;}
+.login-sub{font-size:13px;color:var(--muted);text-align:center;margin-top:-12px;}
+.login-form{width:100%;display:flex;flex-direction:column;gap:12px;}
+.campo-input{width:100%;padding:14px 16px;background:var(--card);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-family:inherit;outline:none;transition:border-color 0.2s;-webkit-appearance:none;}
+.campo-input:focus{border-color:var(--roxo);}
+.campo-input::placeholder{color:var(--muted);}
+.pin-input{text-align:center;letter-spacing:6px;font-size:22px;}
+.pin-input::placeholder{letter-spacing:0;font-size:14px;}
+.btn-entrar{width:100%;padding:16px;border-radius:16px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 8px 24px rgba(251,191,36,0.35);}
+.btn-entrar:active{opacity:0.85;}
+
+/* HEADER */
+.painel-header{padding:20px 18px 18px;padding-top:calc(var(--sat) + 26px);background:linear-gradient(180deg,rgba(30,27,75,0.97) 0%,rgba(15,15,42,0.75) 70%,transparent 100%);position:relative;flex-shrink:0;}
+.painel-header-top{display:flex;align-items:center;gap:10px;position:relative;min-height:52px;}
+.painel-admin-info{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.painel-admin-av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:2px solid var(--roxo-claro);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;box-shadow:0 4px 14px rgba(139,92,246,0.35);}
+.painel-saudacao{font-size:11px;color:rgba(255,255,255,0.55);}
+.painel-titulo{font-size:16px;font-weight:900;color:#fff;}
+.painel-logo-central{width:44px;height:44px;border-radius:12px;object-fit:cover;position:absolute;left:0;right:0;margin:0 auto;box-shadow:0 4px 16px rgba(139,92,246,0.5);}
+.painel-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);font-size:10px;font-weight:700;color:var(--success);letter-spacing:0.4px;flex-shrink:0;margin-left:auto;}
+.painel-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--success);box-shadow:0 0 6px var(--success);animation:blink 2s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.btn-menu-ham{background:rgba(139,92,246,0.1);border:1px solid var(--border);border-radius:13px;color:var(--roxo-claro);font-size:21px;cursor:pointer;padding:9px 13px;flex-shrink:0;position:relative;z-index:1;}
+
+/* TABS */
+.tabs{display:flex;gap:8px;background:var(--bg);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:relative;z-index:5;padding:6px 16px 14px;isolation:isolate;touch-action:pan-x;flex-shrink:0;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex-shrink:0;padding:9px 16px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;border-radius:20px;transition:all 0.2s;}
+.tab.ativo{color:#fff;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border-color:var(--roxo-claro);box-shadow:0 4px 14px rgba(139,92,246,0.35);}
+
+/* CONTEÚDO DAS ABAS */
+.aba{display:none;padding:8px 20px 40px;flex-direction:column;gap:14px;position:relative;z-index:1;isolation:isolate;contain:layout;flex-shrink:0;}
+.aba.ativa{display:flex;}
+
+/* CARDS RESUMO */
+.resumo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+.resumo-card{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--border);border-radius:18px;padding:17px;position:relative;overflow:hidden;}
+.resumo-card::before{content:"";position:absolute;top:0;right:0;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,0.12),transparent 70%);transform:translate(30%,-30%);pointer-events:none;}
+.resumo-card-icon{font-size:26px;margin-bottom:9px;position:relative;}
+.resumo-card-val{font-size:27px;font-weight:900;color:#fff;margin-bottom:3px;position:relative;}
+.resumo-card-val.verde{color:var(--success);}
+.resumo-card-val.amarelo{color:var(--warn);}
+.resumo-card-val.vermelho{color:var(--danger);}
+.resumo-card-val.ciano{color:var(--ciano);}
+.resumo-card-label{font-size:11px;color:var(--muted);font-weight:600;position:relative;}
+
+/* LIVE ENTREGAS */
+.live-header{display:flex;align-items:center;justify-content:space-between;}
+.live-titulo{font-size:14px;font-weight:700;color:#fff;}
+.live-dot{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--success);}
+.live-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--success);box-shadow:0 0 6px var(--success);animation:blink 1.5s ease-in-out infinite;}
+
+.entrega-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;}
+.entrega-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.entrega-status-chip{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:0.5px;}
+.chip-aguardando{background:rgba(245,158,11,0.12);color:var(--warn);border:1px solid rgba(245,158,11,0.25);}
+.chip-aceita{background:rgba(56,189,248,0.12);color:var(--ciano);border:1px solid rgba(56,189,248,0.25);}
+.chip-concluida{background:rgba(34,197,94,0.12);color:var(--success);border:1px solid rgba(34,197,94,0.25);}
+.chip-cancelada{background:rgba(239,68,68,0.12);color:var(--danger);border:1px solid rgba(239,68,68,0.25);}
+.entrega-card-id{font-size:11px;color:var(--muted);}
+.entrega-card-rota{margin-bottom:8px;}
+.entrega-rota-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);padding:3px 0;}
+.entrega-rota-row span{color:var(--muted);font-size:11px;min-width:60px;}
+.entrega-card-bottom{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);}
+.entrega-pessoas{font-size:12px;color:var(--muted);}
+.entrega-valor-chip{font-size:15px;font-weight:800;color:var(--warn);}
+
+.vazio{padding:40px;text-align:center;color:var(--muted);font-size:14px;}
+.secao-label{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;}
+
+/* TOAST / LOADING */
+#toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 20px;font-size:13px;font-weight:600;color:var(--text);z-index:99999;opacity:0;transition:all 0.3s;white-space:normal;text-align:center;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,0.4);pointer-events:none;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9998;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+#loading.show{display:flex;}
+.loading-spinner{width:48px;height:48px;border:3px solid rgba(251,191,36,0.2);border-top-color:var(--roxo);border-radius:50%;animation:spin 0.8s linear infinite;}
+
+
+/* MENU LATERAL (igual restaurante/motoboy) */
+#menu-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:8000;}
+#menu-lateral{display:none;position:fixed;top:0;right:0;bottom:0;width:282px;background:var(--card);border-left:1px solid var(--border);z-index:8001;overflow-y:auto;}
+.menu-hdr{padding:calc(var(--sat) + 46px) 18px 18px;background:linear-gradient(180deg,var(--roxo-escuro),var(--card));border-bottom:1px solid var(--border);text-align:center;}
+.menu-logo{width:80px;height:80px;border-radius:22px;overflow:hidden;margin:0 auto 12px;box-shadow:0 6px 20px rgba(139,92,246,0.3);}
+.menu-logo img{width:100%;height:100%;object-fit:cover;}
+.menu-app{font-size:18px;font-weight:900;color:#fff;margin-bottom:4px;}
+.menu-dev-por{font-size:10px;color:var(--muted);margin-bottom:5px;}
+.menu-ret{position:relative;display:inline-block;border-radius:12px;padding:2px;overflow:hidden;}
+.menu-ret-luz{position:absolute;top:50%;left:50%;width:200%;height:200%;background:conic-gradient(#ef4444,#60a5fa,#f59e0b,#22c55e,#ef4444);animation:gira 2s linear infinite;}
+.menu-ret-inner{position:relative;z-index:1;background:var(--card2);border-radius:10px;padding:6px 16px;}
+.menu-ret-nome{font-size:12px;font-weight:800;color:var(--roxo-claro);white-space:nowrap;}
+.menu-items{padding:8px 18px 36px;}
+.menu-item{padding:16px 0;font-size:15px;font-weight:600;color:var(--text);cursor:pointer;border-bottom:1px solid rgba(139,92,246,0.06);display:flex;align-items:center;gap:9px;}
+.menu-item:last-child{border-bottom:none;}
+.menu-sep{height:1px;background:var(--border);margin:5px 0;}
+
+/* MAPA DE RAIOS DE PREÇO */
+.mapa-raio-wrap{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;}
+.mapa-raio-container{height:340px;position:relative;overflow:hidden;z-index:1;isolation:isolate;}
+#mapa-raios{width:100%;height:100%;}
+#mapa-raios,#mapa-raios *{max-width:100%;}
+#mapa-raios .leaflet-pane{z-index:2!important;}
+#mapa-raios .leaflet-top,#mapa-raios .leaflet-bottom{z-index:3!important;}
+
+.mapa-raio-legenda{position:absolute;top:10px;left:10px;z-index:999;background:rgba(10,10,26,0.9);border:1px solid var(--border);border-radius:12px;padding:8px 12px;font-size:11px;color:var(--text);max-width:140px;}
+.raio-faixas-lista{padding:14px;display:flex;flex-direction:column;gap:10px;}
+.raio-faixa-item{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:12px 14px;}
+.raio-faixa-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.raio-faixa-cor{width:14px;height:14px;border-radius:4px;flex-shrink:0;}
+.raio-faixa-titulo{font-size:13px;font-weight:700;color:#fff;flex:1;margin-left:8px;}
+.raio-faixa-remover{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#ef4444;width:26px;height:26px;border-radius:8px;font-size:14px;cursor:pointer;flex-shrink:0;}
+.raio-faixa-campos{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.raio-campo{display:flex;flex-direction:column;gap:3px;}
+.raio-campo-label{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;}
+.raio-campo-input{padding:8px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;font-family:inherit;outline:none;width:100%;text-align:center;}
+.raio-campo-input:focus{border-color:var(--roxo);}
+.raio-stepper-btn{width:30px;height:30px;border-radius:9px;background:var(--card);border:1px solid var(--border);color:var(--roxo-claro);font-size:17px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.raio-stepper-btn:active{background:var(--roxo);color:#fff;}
+
+.btn-add-faixa{width:100%;padding:13px;border-radius:14px;background:rgba(139,92,246,0.1);border:1px dashed var(--roxo-claro);color:var(--roxo-claro);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn-salvar-faixas{width:100%;padding:15px;border-radius:16px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;}
+
+/* CONFIG (genérico) */
+.config-secao{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;}
+.config-titulo{padding:14px 16px;font-size:13px;font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+.config-item{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(251,191,36,0.08);gap:10px;}
+.config-item:last-child{border-bottom:none;}
+.config-item-info{flex:1;min-width:0;}
+.config-item-titulo{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.config-item-sub{font-size:12px;color:var(--muted);}
+.config-toggle{position:relative;width:48px;height:26px;border-radius:13px;background:var(--card2);border:2px solid var(--border);cursor:pointer;transition:background 0.3s;flex-shrink:0;}
+.config-toggle.on{background:var(--roxo);border-color:var(--roxo);}
+.config-toggle::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform 0.3s;box-shadow:0 2px 4px rgba(0,0,0,0.3);}
+.config-toggle.on::after{transform:translateX(22px);}
+.config-input-inline{padding:6px 12px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;outline:none;width:90px;text-align:center;}
+.config-input-inline:focus{border-color:var(--roxo);}
+.btn-salvar-sec{padding:8px 16px;border-radius:12px;background:var(--roxo);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;}
+.detalhe-secao-tit{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin:14px 2px 8px;}
+.detalhe-info-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:6px;}
+.detalhe-info-row{display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid rgba(139,92,246,0.07);}
+.detalhe-info-row:last-child{border-bottom:none;}
+.detalhe-info-row span{font-size:18px;width:24px;text-align:center;flex-shrink:0;}
+.detalhe-info-lb{font-size:10px;color:var(--muted);margin-bottom:2px;}
+.detalhe-info-vl{font-size:13px;color:#fff;font-weight:600;}
+.detalhe-edit-campo{margin-bottom:11px;}
+.detalhe-edit-campo:last-child{margin-bottom:0;}
+
+.modal-din{display:none!important;}
+.modal-din.show{display:flex!important;}
+/* EFEITO 3D EM CARDS CLICÁVEIS */
+.card-clicavel{position:relative;transition:transform 0.15s ease,box-shadow 0.15s ease,filter 0.15s ease;}
+.card-clicavel.pressionando{transform:scale(0.97);filter:brightness(1.08);box-shadow:0 2px 20px rgba(139,92,246,0.5);}
+#pwa-banner{position:fixed;bottom:-100px;left:12px;right:12px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:13px;z-index:9500;box-shadow:0 10px 30px rgba(0,0,0,0.5);transition:bottom 0.4s ease;}
+#pwa-banner.show{bottom:16px;}
+.pwa-inner{display:flex;align-items:center;gap:11px;}
+.pwa-logo{width:42px;height:42px;border-radius:11px;overflow:hidden;flex-shrink:0;}
+.pwa-logo img{width:100%;height:100%;object-fit:cover;}
+.pwa-txt{flex:1;display:flex;flex-direction:column;}
+.pwa-txt strong{font-size:13px;color:#fff;}
+.pwa-txt span{font-size:11px;color:var(--muted);}
+.pwa-btns{display:flex;gap:7px;flex-shrink:0;}
+.btn-inst{padding:9px 14px;border-radius:11px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn-x{width:30px;height:30px;border-radius:9px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:14px;cursor:pointer;}
+#ios-guide{position:fixed;bottom:-400px;left:12px;right:12px;max-height:min(320px,60vh);overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px;z-index:9500;box-shadow:0 10px 30px rgba(0,0,0,0.5);transition:bottom 0.4s ease;}
+#ios-guide.show{bottom:16px;}
+.ios-tit{font-size:15px;font-weight:800;color:#fff;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.ios-steps{display:flex;flex-direction:column;gap:11px;margin-bottom:14px;}
+.ios-step{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);}
+.ios-n{width:22px;height:22px;border-radius:50%;background:var(--roxo);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.chip-ios{background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:2px 7px;font-size:12px;}
+/* CARDS EXTRAS DASHBOARD (customizáveis) */
+#cards-extras-container{display:flex;flex-wrap:wrap;gap:10px;position:relative;}
+.card-widget{position:relative;background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--border);border-radius:16px;padding:14px;box-sizing:border-box;cursor:pointer;}
+.card-widget.tam-1{width:100%;}
+.card-widget.tam-2{width:calc(50% - 5px);}
+.card-widget.tam-3{width:calc(33.333% - 7px);}
+.card-widget:not(.drag-ativo){transition:transform 0.25s cubic-bezier(.2,.9,.3,1.3),box-shadow 0.25s ease;}
+.card-widget.drag-ativo{position:fixed!important;z-index:9500;box-shadow:0 22px 46px rgba(139,92,246,0.4),0 12px 24px rgba(0,0,0,0.55)!important;filter:brightness(1.12);transform:scale(1.05) rotate(-1.2deg)!important;transition:box-shadow 0.2s ease,filter 0.2s ease!important;pointer-events:none;}
+.card-widget-placeholder{border-radius:16px;border:2px dashed var(--border);background:rgba(139,92,246,0.05);box-sizing:border-box;}
+.card-widget-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
+.card-widget-titulo{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.card-widget-icon{font-size:15px;flex-shrink:0;}
+.card-widget-val{font-size:20px;font-weight:900;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.card-widget-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.card-widget.tam-3 .card-widget-val{font-size:15px;}
+.config-card-item-dash{display:flex;align-items:center;gap:11px;background:var(--card2);border:1px solid var(--border);border-radius:13px;padding:11px 13px;}
+.perfil-preco-btn{flex-shrink:0;padding:11px 14px;border-radius:14px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center;line-height:1.5;}
+.perfil-preco-btn span{display:block;font-size:9px;color:var(--muted);font-weight:500;}
+.perfil-preco-btn:active{background:var(--roxo);border-color:var(--roxo-claro);}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<!-- SPLASH -->
+<div class="screen ativo" id="tela-splash">
+  <div class="splash-logo"><img id="logo-splash" src="" alt="Entrega Já Admin"/></div>
+  <div class="splash-title">Entrega Já<br/><span>Painel Admin</span></div>
+  <div class="splash-sub" style="margin-bottom:2px;">Gestão completa do sistema</div>
+  <div class="menu-ret" style="margin-top:2px;">
+    <div class="menu-ret-luz"></div>
+    <div class="menu-ret-inner"><div class="menu-ret-nome">Desenvolvido por Heitor Serra Neto</div></div>
+  </div>
+  <div class="splash-loader"></div>
+</div>
+
+<!-- LOGIN -->
+<div class="screen" id="tela-login">
+  <div class="login-box">
+    <div class="login-logo"><img id="logo-login" src="" alt="Entrega Já Admin"/></div>
+    <div class="login-titulo">Painel Admin</div>
+    <div class="login-sub">Entrega Já</div>
+    <div class="login-form">
+      <input class="campo-input pin-input" id="pin-input" type="password" inputmode="numeric" maxlength="8" placeholder="PIN de acesso"/>
+      <button class="btn-entrar" onclick="fazerLogin()">Entrar no painel</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAINEL PRINCIPAL -->
+<div class="screen" id="tela-painel">
+  <div class="painel-header">
+    <div class="painel-header-top">
+      <div class="painel-admin-info" onclick="abrirEditarAdmin()" style="cursor:pointer;">
+        <div class="painel-admin-av" id="admin-av-header">👨‍💼</div>
+        <div>
+          <div class="painel-saudacao">Painel de controle</div>
+          <div class="painel-titulo" id="admin-nome-header">Admin</div>
+        </div>
+      </div>
+      <img id="logo-header" src="" class="painel-logo-central" alt=""/>
+      <div class="painel-badge"><div class="painel-badge-dot"></div>Live</div>
+      <button class="btn-menu-ham" onclick="abrirMenu()">☰</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab ativo" onclick="abrirAba('dashboard')">📊 Dashboard</button>
+    <button class="tab" onclick="abrirAba('entregas')">🚗 Entregas</button>
+    <button class="tab" onclick="abrirAba('motoboys')">🏍️ Motoboys</button>
+    <button class="tab" onclick="abrirAba('restaurantes')">🏪 Restaurantes</button>
+    <button class="tab" onclick="abrirAba('fraudes')">⚠️ Fraudes</button>
+    <button class="tab" onclick="abrirAba('precos')">🗺️ Preços</button>
+    <button class="tab" onclick="abrirAba('avaliacoes')">⭐ Avaliações</button>
+    <button class="tab" onclick="abrirAba('receita')">💰 Receita</button>
+    <button class="tab" onclick="abrirAba('config')">⚙️ Config</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="aba ativa" id="aba-dashboard"><div style="height:6px;flex-shrink:0;"></div>
+    <div id="cards-extras-container"></div>
+
+    <button class="card-clicavel" onclick="abrirEntregasLiveModal()" style="width:100%;background:linear-gradient(135deg,rgba(139,92,246,0.12),rgba(56,189,248,0.08));border:1px solid var(--roxo-claro);border-radius:16px;padding:15px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;">
+      <div style="font-size:24px;">🔴</div>
+      <div style="flex:1;text-align:left;">
+        <div style="font-size:14px;font-weight:800;color:#fff;">Entregas em tempo real</div>
+        <div style="font-size:11px;color:var(--muted);">Toque para acompanhar ao vivo</div>
+      </div>
+      <div style="font-size:18px;color:var(--roxo-claro);">→</div>
+    </button>
+  </div>
+
+  <!-- ENTREGAS -->
+  <div class="aba" id="aba-entregas"><div style="height:6px;flex-shrink:0;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="tab ativo" id="filtro-todas" onclick="filtrarEntregas('todas')" style="border-radius:20px;padding:7px 14px;font-size:12px;">Todas</button>
+      <button class="tab" id="filtro-concluidas" onclick="filtrarEntregas('concluida')" style="border-radius:20px;padding:7px 14px;font-size:12px;">Concluídas</button>
+      <button class="tab" id="filtro-canceladas" onclick="filtrarEntregas('cancelada_cliente')" style="border-radius:20px;padding:7px 14px;font-size:12px;">Canceladas</button>
+    </div>
+    <div id="lista-entregas"><div class="vazio">Carregando...</div></div>
+  </div>
+
+  <!-- MOTOBOYS -->
+  <div class="aba" id="aba-motoboys"><div style="height:6px;flex-shrink:0;"></div>
+    <input class="campo-input" id="busca-motoboys" type="text" placeholder="🔍 Buscar por nome ou WhatsApp..." oninput="filtrarListaMotoboys()" style="margin-bottom:2px;"/>
+    <div id="lista-motoboys"><div class="vazio">Carregando...</div></div>
+  </div>
+
+  <!-- RESTAURANTES -->
+  <div class="aba" id="aba-restaurantes"><div style="height:6px;flex-shrink:0;"></div>
+    <input class="campo-input" id="busca-restaurantes" type="text" placeholder="🔍 Buscar por nome ou WhatsApp..." oninput="filtrarListaRestaurantes()" style="margin-bottom:2px;"/>
+    <div id="lista-restaurantes"><div class="vazio">Carregando...</div></div>
+  </div>
+
+  <!-- FRAUDES / DIVERGÊNCIAS DE GPS / MULTAS PENDENTES -->
+  <div class="aba" id="aba-fraudes"><div style="height:6px;flex-shrink:0;"></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Divergências de GPS registradas (chegada/conclusão fora do raio) e cancelamentos por falta de pagamento pendentes de revisão.</div>
+    <div id="lista-fraudes"><div class="vazio">Carregando...</div></div>
+  </div>
+
+  <!-- PREÇOS (mapa de raios) -->
+  <div class="aba" id="aba-precos"><div style="height:6px;flex-shrink:0;"></div>
+    <div class="secao-label">Perfis prontos (aplicar tabela)</div>
+    <div style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;touch-action:pan-x;">
+      <button class="perfil-preco-btn" onclick="aplicarPerfilPreco('inicial')">🌱 Inicial<br><span>Atrai motoboys</span></button>
+      <button class="perfil-preco-btn" onclick="aplicarPerfilPreco('baixo')">💚 Baixo</button>
+      <button class="perfil-preco-btn" onclick="aplicarPerfilPreco('medio')">💛 Médio</button>
+      <button class="perfil-preco-btn" onclick="aplicarPerfilPreco('altomedio')">🟠 Médio-alto</button>
+      <button class="perfil-preco-btn" onclick="aplicarPerfilPreco('alto')">🔴 Alto</button>
+    </div>
+    <div class="secao-label" style="margin-top:8px;">Configuração de preços por raio</div>
+    <div class="mapa-raio-wrap">
+      <div class="mapa-raio-container">
+        <div class="mapa-raio-legenda" id="mapa-raio-legenda">Ajuste o raio de cada faixa com os botões + e −. O mapa mostra o círculo em tempo real.</div>
+        <div id="mapa-raios"></div>
+      </div>
+    </div>
+    <div class="raio-faixas-lista" id="lista-faixas-preco"></div>
+    <button class="btn-add-faixa" onclick="adicionarFaixaPreco()">+ Adicionar faixa de preço</button>
+    <button class="btn-salvar-faixas" onclick="salvarFaixasPreco()">💾 Salvar tabela de preços</button>
+  </div>
+
+  <!-- AVALIAÇÕES -->
+  <div class="aba" id="aba-avaliacoes"><div style="height:6px;flex-shrink:0;"></div>
+    <div class="secao-label">Alertas de avaliação baixa</div>
+    <div id="lista-alertas-aval"><div class="vazio">Carregando...</div></div>
+    <div class="secao-label" style="margin-top:10px;">Avaliações recentes</div>
+    <div id="lista-avaliacoes"><div class="vazio">Carregando...</div></div>
+  </div>
+
+  <!-- RECEITA -->
+  <div class="aba" id="aba-receita"><div style="height:6px;flex-shrink:0;"></div>
+    <div class="config-secao" style="padding:18px;">
+      <div style="text-align:center;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+        <div style="font-size:42px;font-weight:900;color:var(--warn);line-height:1;" id="rec-total">R$ 0,00</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px;">Total em créditos vendidos aos motoboys</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <div style="background:var(--card2);border-radius:14px;padding:12px;text-align:center;"><div style="font-size:18px;font-weight:800;color:#fff;" id="rec-hoje">R$ 0</div><div style="font-size:11px;color:var(--muted);">Hoje</div></div>
+        <div style="background:var(--card2);border-radius:14px;padding:12px;text-align:center;"><div style="font-size:18px;font-weight:800;color:#fff;" id="rec-semana">R$ 0</div><div style="font-size:11px;color:var(--muted);">Esta semana</div></div>
+        <div style="background:var(--card2);border-radius:14px;padding:12px;text-align:center;"><div style="font-size:18px;font-weight:800;color:#fff;" id="rec-mes">R$ 0</div><div style="font-size:11px;color:var(--muted);">Este mês</div></div>
+      </div>
+    </div>
+    <div class="resumo-grid">
+      <div class="resumo-card"><div class="resumo-card-icon">🚗</div><div class="resumo-card-val ciano" id="rec-total-entregas">0</div><div class="resumo-card-label">Total entregas</div></div>
+      <div class="resumo-card"><div class="resumo-card-icon">🏍️</div><div class="resumo-card-val verde" id="rec-total-motoboys">0</div><div class="resumo-card-label">Motoboys ativos</div></div>
+      <div class="resumo-card"><div class="resumo-card-icon">👤</div><div class="resumo-card-val ciano" id="rec-total-restaurantes">0</div><div class="resumo-card-label">Restaurantes</div></div>
+      <div class="resumo-card"><div class="resumo-card-icon">⭐</div><div class="resumo-card-val amarelo" id="rec-aval-media">—</div><div class="resumo-card-label">Avaliação média</div></div>
+    </div>
+  </div>
+
+  <!-- CONFIG -->
+  <div class="aba" id="aba-config"><div style="height:6px;flex-shrink:0;"></div>
+    <div class="config-secao">
+      <div class="config-titulo">Cobrança do restaurante</div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Cobrar dos restaurantes</div><div class="config-item-sub">Hoje é grátis para todos. Ative quando quiser começar a cobrar.</div></div>
+        <div class="config-toggle" id="toggle-cobrancaRestaurante" onclick="toggleConfig('cobrancaRestaurante')"></div>
+      </div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Modelo de cobrança</div></div>
+        <select class="config-input-inline" id="cfg-modelo-cobranca" style="width:auto;">
+          <option value="mensalidade">Mensalidade fixa</option>
+          <option value="creditos">Créditos por pedido</option>
+        </select>
+      </div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Valor da mensalidade (R$)</div></div>
+        <input class="config-input-inline" id="cfg-valor-mensalidade" type="number" value="0" step="10" min="0"/>
+      </div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Alerta de saldo baixo (R$)</div></div>
+        <input class="config-input-inline" id="cfg-alerta-saldo" type="number" value="10" step="5" min="0"/>
+      </div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Salvar</div></div>
+        <button class="btn-salvar-sec" onclick="salvarConfigCobrancaRestaurante()">Salvar</button>
+      </div>
+    </div>
+
+    <div class="config-secao">
+      <div class="config-titulo">Créditos do motoboy</div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Saldo máximo (teto)</div><div class="config-item-sub">Deixe 0 para sem limite</div></div>
+        <input class="config-input-inline" id="cfg-teto-credito" type="number" value="200" step="10" min="0"/>
+      </div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Salvar</div></div>
+        <button class="btn-salvar-sec" onclick="salvarConfigCreditos()">Salvar</button>
+      </div>
+    </div>
+
+    <div class="config-secao">
+      <div class="config-titulo">Contato e Suporte</div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">WhatsApp do administrador</div><div class="config-item-sub">Recebe pedidos de recuperação e suporte</div></div>
+      </div>
+      <div class="config-item">
+        <input class="campo-input" id="cfg-whatsapp" type="tel" placeholder="5519982480386" style="text-align:left;"/>
+      </div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Salvar</div></div>
+        <button class="btn-salvar-sec" onclick="salvarConfigWhatsapp()">Salvar</button>
+      </div>
+    </div>
+
+    <div class="config-secao">
+      <div class="config-titulo">Acesso e Cadastro</div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Permitir cadastro sem conta</div><div class="config-item-sub">Restaurantes podem pedir sem login</div></div>
+        <div class="config-toggle on" id="toggle-semconta" onclick="toggleConfig('semconta')"></div>
+      </div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Novos motoboys</div><div class="config-item-sub">Permitir novos cadastros de motoboys</div></div>
+        <div class="config-toggle on" id="toggle-novomotoboy" onclick="toggleConfig('novomotoboy')"></div>
+      </div>
+    </div>
+
+    <div class="config-secao">
+      <div class="config-titulo">PIN de Acesso</div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Novo PIN</div><div class="config-item-sub">Mínimo 4 dígitos</div></div>
+        <input class="config-input-inline" id="novo-pin" type="password" inputmode="numeric" maxlength="8" placeholder="••••"/>
+      </div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Alterar PIN</div></div>
+        <button class="btn-salvar-sec" onclick="alterarPin()">Alterar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MENU LATERAL -->
+<div id="menu-overlay" onclick="fecharMenu()"></div>
+<div id="menu-lateral">
+  <div class="menu-hdr">
+    <div class="menu-logo"><img id="logo-menu" src="" alt=""/></div>
+    <div class="menu-app">Entrega Já</div>
+    <div class="menu-dev-por">Desenvolvido por</div>
+    <div class="menu-ret">
+      <div class="menu-ret-luz"></div>
+      <div class="menu-ret-inner"><div class="menu-ret-nome">Heitor Serra Neto</div></div>
+    </div>
+  </div>
+  <div class="menu-items">
+    <div class="menu-item" onclick="fecharMenu();abrirAba('dashboard')">📊 Dashboard</div>
+    <div class="menu-item" onclick="fecharMenu();abrirAba('precos')">🗺️ Preços por raio</div>
+    <div class="menu-item" onclick="fecharMenu();abrirAba('avaliacoes')">⭐ Avaliações</div>
+    <div class="menu-item" onclick="fecharMenu();abrirConfigCardsDash()">🧩 Personalizar Dashboard</div>
+    <div class="menu-sep"></div>
+    <div class="menu-item" style="color:#ef4444;" onclick="sair()">🚪 Sair do painel</div>
+  </div>
+</div>
+
+<div id="pwa-banner">
+  <div class="pwa-inner">
+    <div class="pwa-logo"><img id="pwa-logo-img" src="" alt=""/></div>
+    <div class="pwa-txt"><strong>Instalar Painel Admin</strong><span>Adicione à tela inicial</span></div>
+    <div class="pwa-btns"><button class="btn-inst" id="btn-inst">Instalar</button><button class="btn-x" onclick="fecharPWA()">✕</button></div>
+  </div>
+</div>
+<div id="ios-guide">
+  <div class="ios-tit">📲 Instalar no iPhone <button class="btn-x" onclick="fecharPWA()">✕</button></div>
+  <div class="ios-steps">
+    <div class="ios-step"><div class="ios-n">1</div><span>Toque em <span class="chip-ios">⬆ Compartilhar</span> na barra do Safari</span></div>
+    <div class="ios-step"><div class="ios-n">2</div><span>Role e toque em <em>"Adicionar à Tela de Início"</em></span></div>
+    <div class="ios-step"><div class="ios-n">3</div><span>Toque em <em>"Adicionar"</em> para confirmar</span></div>
+  </div>
+  <button onclick="fecharPWA()" style="width:100%;padding:10px;border-radius:16px;background:rgba(255,255,255,0.05);border:none;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Entendi</button>
+</div>
+
+<div id="toast"></div>
+<div id="loading"><div class="loading-spinner"></div></div>
+
+<script>
+const LOGO_URL="https://raw.githubusercontent.com/heitorserra-81/ENTREGA-JA-Restaurante/refs/heads/main/IMG_1104.png";
+document.getElementById("logo-splash").src=LOGO_URL;
+document.getElementById("logo-login").src=LOGO_URL;
+document.getElementById("logo-header").src=LOGO_URL;
+document.getElementById("logo-menu").src=LOGO_URL;
+
+// ── FIREBASE ──
+const firebaseConfig={apiKey:"AIzaSyAts9fsoZ_GrF3MRHDRlAw61Xti2uBkdnM",authDomain:"staffcheck-d6f20.firebaseapp.com",projectId:"staffcheck-d6f20",storageBucket:"staffcheck-d6f20.firebasestorage.app",messagingSenderId:"1055570421019",appId:"1:1055570421019:web:7b5dcc564bfe1c30189fbe"};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+
+// ── ESTADO ──
+const PIN_PADRAO="1234";
+let pinAtual=localStorage.getItem("ej_admin_pin")||PIN_PADRAO;
+let unsubLive=null,filtroCorrente="todas";
+let configs={semconta:true,novomotoboy:true,tetoCredito:200,whatsappAdmin:"5519982480386",cobrancaRestaurante:false,modeloCobranca:"mensalidade",valorMensalidade:0,alertaSaldoBaixo:10};
+
+// ── PARTÍCULAS ──
+(function(){
+  const cv=document.getElementById("cv");
+  if(!cv)return;
+  const ctx=cv.getContext("2d");
+  function resize(){cv.width=window.innerWidth;cv.height=window.innerHeight;}
+  resize();
+  window.addEventListener("resize",resize);
+  const N=46,pts=[];
+  for(let i=0;i<N;i++)pts.push({x:Math.random()*cv.width,y:Math.random()*cv.height,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+.6});
+  function draw(){
+    ctx.fillStyle="#080f1e";ctx.fillRect(0,0,cv.width,cv.height);
+    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){
+      const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<120){ctx.strokeStyle=`rgba(139,92,246,${(1-d/120)*.15})`;ctx.lineWidth=.6;ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.stroke();}
+    }
+    pts.forEach(p=>{
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle="rgba(139,92,246,.3)";ctx.fill();
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>cv.width)p.vx*=-1;if(p.y<0||p.y>cv.height)p.vy*=-1;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── INIT (robusto, com múltiplas garantias) ──
+let _appIniciado=false;
+function _iniciarApp(){
+  if(_appIniciado)return;_appIniciado=true;
+  const logado=sessionStorage.getItem("ej_admin_logado");
+  if(logado==="1")entrarPainel();
+  else mostrarTela("tela-login");
+}
+if(document.readyState==="complete")setTimeout(_iniciarApp,2800);
+else window.addEventListener("load",()=>setTimeout(_iniciarApp,2800));
+document.addEventListener("DOMContentLoaded",()=>setTimeout(_iniciarApp,3200));
+setTimeout(_iniciarApp,5500);
+
+// ── LOGIN ──
+function fazerLogin(){
+  const pin=document.getElementById("pin-input").value;
+  if(pin===pinAtual){sessionStorage.setItem("ej_admin_logado","1");entrarPainel();}
+  else{toast("PIN incorreto!");document.getElementById("pin-input").value="";}
+}
+document.getElementById("pin-input").addEventListener("keydown",e=>{if(e.key==="Enter")fazerLogin();});
+
+function entrarPainel(){
+  mostrarTela("tela-painel");
+  carregarConfigs();
+  carregarPerfilAdmin();
+  abrirAba("dashboard");
+  setTimeout(()=>pedirNotifAdmin(),1500);
+}
+function sair(){
+  sessionStorage.removeItem("ej_admin_logado");
+  if(unsubLive){unsubLive();unsubLive=null;}
+  mostrarTela("tela-login");
+  document.getElementById("pin-input").value="";
+}
+
+// ── NAVEGAÇÃO ──
+function mostrarTela(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("ativo"));
+  const el=document.getElementById(id);
+  if(el)el.classList.add("ativo");
+  const ov=document.getElementById("menu-overlay"),ml=document.getElementById("menu-lateral");
+  if(ov)ov.style.display="none";
+  if(ml)ml.style.display="none";
+}
+function abrirMenu(){document.getElementById("menu-overlay").style.display="block";document.getElementById("menu-lateral").style.display="block";}
+function fecharMenu(){
+  const ov=document.getElementById("menu-overlay"),ml=document.getElementById("menu-lateral");
+  if(ov)ov.style.display="none";
+  if(ml)ml.style.display="none";
+}
+
+function abrirAba(id){
+  document.querySelectorAll(".aba").forEach(a=>a.classList.remove("ativa"));
+  document.querySelectorAll(".tabs .tab").forEach(t=>t.classList.remove("ativo"));
+  document.getElementById("aba-"+id).classList.add("ativa");
+  const tela=document.getElementById("tela-painel");
+  if(tela)tela.scrollTop=0;
+  const tabs=[...document.querySelectorAll(".tabs .tab")];
+  const map={dashboard:0,entregas:1,motoboys:2,restaurantes:3,fraudes:4,precos:5,avaliacoes:6,receita:7,config:8};
+  if(map[id]!==undefined&&tabs[map[id]])tabs[map[id]].classList.add("ativo");
+
+  switch(id){
+    case"dashboard":carregarDashboard();renderCardsExtrasDash();break;
+    case"entregas":carregarEntregas("todas");break;
+    case"motoboys":carregarMotoboys();break;
+    case"restaurantes":carregarRestaurantes();break;
+    case"fraudes":carregarFraudes();break;
+    case"precos":carregarFaixasPreco();break;
+    case"avaliacoes":carregarAvaliacoes();break;
+    case"receita":carregarReceita();break;
+    case"config":carregarConfigs();break;
+  }
+}
+
+// ── UTILS ──
+function formatarData(ts){if(!ts)return"—";const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});}
+function formatarDataSimples(ts){if(!ts)return"—";const d=ts.toDate?ts.toDate():new Date(ts);return d.toLocaleDateString("pt-BR");}
+function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),3500);}
+function mostrarLoading(s){document.getElementById("loading").classList.toggle("show",s);}
+</script>
+<script>
+// ── DASHBOARD ──
+function carregarDashboard(){
+  // Dados agora vêm todos de calcularDadosCardsDash() / renderCardsExtrasDash()
+}
+
+function iniciarLive(){
+  if(unsubLive)unsubLive();
+  unsubLive=db.collection("ej_pedidos").where("status","in",["aguardando","aceita","a_caminho","motoboy_chegou"]).onSnapshot(snap=>{
+    const el=document.getElementById("lista-live");
+    if(snap.empty){el.innerHTML="<div class='vazio'>Nenhuma entrega ativa no momento</div>";return;}
+    el.innerHTML=snap.docs.map(d=>renderEntregaCard(d.data())).join("");
+  });
+}
+
+// ── ENTREGAS ──
+async function carregarEntregas(filtro){
+  filtroCorrente=filtro;
+  const el=document.getElementById("lista-entregas");
+  el.innerHTML="<div class='vazio'>Carregando...</div>";
+  ["todas","concluida","cancelada_cliente"].forEach(f=>{
+    const id="filtro-"+(f==="todas"?"todas":f==="concluida"?"concluidas":"canceladas");
+    const el2=document.getElementById(id);
+    if(el2)el2.classList.toggle("ativo",f===filtro);
+  });
+  try{
+    let query=db.collection("ej_pedidos").orderBy("criadoEm","desc").limit(50);
+    if(filtro!=="todas")query=query.where("status","==",filtro);
+    const snap=await query.get();
+    if(snap.empty){el.innerHTML="<div class='vazio'>Nenhuma entrega encontrada</div>";return;}
+    el.innerHTML=snap.docs.map(d=>renderEntregaCard(d.data())).join("");
+  }catch(e){el.innerHTML="<div class='vazio'>Erro ao carregar</div>";}
+}
+function filtrarEntregas(f){carregarEntregas(f);}
+async function carregarFraudes(){
+  const el=document.getElementById("lista-fraudes");
+  el.innerHTML="<div class='vazio'>Carregando...</div>";
+  try{
+    const [snapDiverg,snapMultas]=await Promise.all([
+      db.collection("ej_pedidos").orderBy("criadoEm","desc").limit(200).get(),
+      db.collectionGroup("multas").where("status","==","pendente_revisao").get()
+    ]);
+    const divergentes=snapDiverg.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.divergenciaChegada||c.divergenciaConclusao);
+    const multas=snapMultas.docs.map(d=>({id:d.id,pedidoId:d.ref.parent.parent.id,...d.data()}));
+    if(divergentes.length===0&&multas.length===0){el.innerHTML="<div class='vazio'>Nenhuma fraude ou divergência registrada. Tudo limpo por aqui. ✅</div>";return;}
+    let html="";
+    if(multas.length>0){
+      html+=`<div style="font-size:12px;font-weight:800;color:#ef4444;margin:6px 0 9px;">🚨 MULTAS PENDENTES DE REVISÃO (${multas.length})</div>`;
+      html+=multas.map(m=>`
+        <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:13px;margin-bottom:9px;">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:5px;">Pedido ${m.pedidoId.slice(-6).toUpperCase()} · ${formatarData(m.criadoEm)}</div>
+          <div style="font-size:13px;color:var(--text);margin-bottom:9px;">${m.motivo||"Motivo não informado"}</div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="resolverMulta('${m.pedidoId}','${m.id}','revisado_ok')" style="flex:1;padding:9px;border-radius:10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:var(--success);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">✓ Revisado, sem problema</button>
+            <button onclick="resolverMulta('${m.pedidoId}','${m.id}','confirmada')" style="flex:1;padding:9px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">⚠️ Confirmar multa</button>
+          </div>
+        </div>`).join("");
+    }
+    if(divergentes.length>0){
+      html+=`<div style="font-size:12px;font-weight:800;color:var(--warn);margin:14px 0 9px;">📍 DIVERGÊNCIAS DE GPS (${divergentes.length})</div>`;
+      html+=divergentes.map(c=>{
+        const cSafe=encodeURIComponent(JSON.stringify(c));
+        return`<div class="card-clicavel" onclick="abrirDetalheEntrega('${cSafe}')" style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:9px;cursor:pointer;">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:5px;">${formatarData(c.criadoEm)} · ${c.clienteNome||"Restaurante"} · ${c.motoboy?.nome||"—"}</div>
+          ${c.divergenciaChegada?`<div style="font-size:13px;color:var(--text);margin-bottom:3px;">🏪 Chegada: ${c.divergenciaChegada.distanciaM}m — "${c.divergenciaChegada.motivo}"</div>`:""}
+          ${c.divergenciaConclusao?`<div style="font-size:13px;color:var(--text);">🏁 Conclusão: ${c.divergenciaConclusao.distanciaM}m — "${c.divergenciaConclusao.motivo}"</div>`:""}
+        </div>`;
+      }).join("");
+    }
+    el.innerHTML=html;
+  }catch(e){el.innerHTML=`<div class='vazio'>Erro ao carregar. Se for a primeira vez, o Firestore pode pedir para criar um índice — veja o console do navegador (F12) para o link. (${e.message})</div>`;}
+}
+async function resolverMulta(pedidoId,multaId,novoStatus){
+  mostrarLoading(true);
+  try{
+    await db.collection("ej_pedidos").doc(pedidoId).collection("multas").doc(multaId).update({status:novoStatus,revisadoEm:firebase.firestore.FieldValue.serverTimestamp()});
+    mostrarLoading(false);
+    toast("Multa atualizada ✓");
+    carregarFraudes();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+
+function renderEntregaCard(c){
+  const statusMap={aguardando:{cls:"chip-aguardando",txt:"AGUARDANDO"},aceita:{cls:"chip-aceita",txt:"ACEITA"},a_caminho:{cls:"chip-aceita",txt:"A CAMINHO"},motoboy_chegou:{cls:"chip-aceita",txt:"MOTOBOY CHEGOU"},concluida:{cls:"chip-concluida",txt:"CONCLUÍDA"},cancelada_cliente:{cls:"chip-cancelada",txt:"CANCELADA"},cancelada_motoboy:{cls:"chip-cancelada",txt:"CANCELADA MOT."},cancelada_pagamento_nao_realizado:{cls:"chip-cancelada",txt:"SEM PAGAMENTO"}};
+  const s=statusMap[c.status]||{cls:"chip-cancelada",txt:c.status};
+  const cSafe=encodeURIComponent(JSON.stringify(c));
+  return`<div class="entrega-card card-clicavel" onclick="abrirDetalheEntrega('${cSafe}')" style="cursor:pointer;">
+    <div class="entrega-card-top"><div class="entrega-status-chip ${s.cls}">${s.txt}</div><div class="entrega-card-id">${formatarData(c.criadoEm)}</div></div>
+    <div class="entrega-card-rota">
+      <div class="entrega-rota-row"><span>🏪 Restaurante</span>${c.restauranteEndereco||c.origem||"—"}</div>
+      <div class="entrega-rota-row"><span>🔴 Destino</span>${c.destino||"—"}</div>
+      ${c.obs?`<div class="entrega-rota-row"><span>📝 Obs.</span>${c.obs}</div>`:""}
+      ${c.formaPgto?`<div class="entrega-rota-row"><span>💰 Pagto</span>${c.formaPgto}</div>`:""}
+    </div>
+    <div class="entrega-card-bottom">
+      <div class="entrega-pessoas">🏪 ${c.clienteNome||"Restaurante"} · 🏍️ ${c.motoboy?c.motoboy.nome:"Sem motoboy"}</div>
+      <div class="entrega-valor-chip">R$ ${parseFloat(c.valor||c.valorTotal||c.valorPedido||0).toFixed(2).replace(".",",")}</div>
+    </div>
+  </div>`;
+}
+
+// ── MOTOBOYS ──
+let _todosMotoboys=[];
+async function carregarMotoboys(){
+  const el=document.getElementById("lista-motoboys");
+  el.innerHTML="<div class='vazio'>Carregando...</div>";
+  try{
+    const snap=await db.collection("ej_motoboys").orderBy("criadoEm","desc").get();
+    _todosMotoboys=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderListaMotoboys(_todosMotoboys);
+  }catch(e){el.innerHTML="<div class='vazio'>Erro ao carregar</div>";}
+}
+function filtrarListaMotoboys(){
+  const termo=(document.getElementById("busca-motoboys").value||"").toLowerCase().trim();
+  if(!termo){renderListaMotoboys(_todosMotoboys);return;}
+  const filtrados=_todosMotoboys.filter(m=>(m.nome||"").toLowerCase().includes(termo)||(m.fone||"").includes(termo));
+  renderListaMotoboys(filtrados);
+}
+function renderListaMotoboys(lista){
+  const el=document.getElementById("lista-motoboys");
+  if(lista.length===0){el.innerHTML="<div class='vazio'>Nenhum motoboy encontrado</div>";return;}
+  el.innerHTML=lista.map(m=>{
+    const veiculos={moto:"🏍️",carro:"🚗",van:"🚐"};
+    const vei=veiculos[m.veiculo]||"🏍️";
+    const bloqueado=m.bloqueado||false;
+    const nivel=nivelPorCorridas(m.totalCorridas||0);
+    const mSafe=encodeURIComponent(JSON.stringify(m));
+    return`<div class="motoboy-card card-clicavel" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;cursor:pointer;" onclick="abrirDetalheMotoboy('${mSafe}')">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--card2);border:2px solid var(--roxo);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${m.foto?`<img src="${m.foto}" style="width:100%;height:100%;object-fit:cover;"/>`:"👤"}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:2px;">${m.nome||"—"} ${nivel}</div>
+          <div style="font-size:12px;color:var(--muted);">${m.fone||"—"} · ${vei} ${m.placa||"—"}</div>
+          <div style="font-size:11px;color:var(--muted);">CPF: ${m.cpf||"não informado"}</div>
+        </div>
+        <div class="mot-online ${m.online?"on":"off"}" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;flex-shrink:0;">${m.online?"● Online":"○ Offline"}</div>
+      </div>
+      ${bloqueado?`<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:7px 10px;margin-bottom:10px;font-size:11px;color:#ef4444;font-weight:700;">🚫 CONTA BLOQUEADA</div>`:""}
+      ${m.explicacaoAvaliacao?`<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:11px;color:var(--text);"><b style="color:var(--warn);">Explicação enviada:</b> ${m.explicacaoAvaliacao} <button onclick="resolverAlertaAval('${m.id}')" style="margin-left:6px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:var(--success);border-radius:6px;padding:2px 7px;font-size:10px;cursor:pointer;font-family:inherit;">✓ Resolvido</button></div>`:""}
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="flex:1;background:var(--card2);border-radius:10px;padding:8px;text-align:center;cursor:pointer;" onclick="event.stopPropagation();abrirEditarCredito('ej_motoboys','${m.id}','${m.nome}',${m.creditos||0})"><div style="font-size:15px;font-weight:700;color:var(--warn);">R$ ${parseFloat(m.creditos||0).toFixed(0)} ✏️</div><div style="font-size:10px;color:var(--muted);">Créditos</div></div>
+        <div style="flex:1;background:var(--card2);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:15px;font-weight:700;color:#fff;">${m.totalCorridas||0}</div><div style="font-size:10px;color:var(--muted);">Entregas</div></div>
+        <div style="flex:1;background:var(--card2);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:15px;font-weight:700;color:var(--warn);">${m.avaliacao?"⭐ "+parseFloat(m.avaliacao).toFixed(1):"Novo"}</div><div style="font-size:10px;color:var(--muted);">Avaliação</div></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button style="flex:1;padding:10px;border-radius:12px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;" onclick="event.stopPropagation();abrirCredito('${m.id}','${m.nome}',${m.creditos||0})">💳 Add Créditos</button>
+        <button style="flex:1;padding:10px;border-radius:12px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ciano);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="event.stopPropagation();abrirResetSenha('ej_motoboys','${m.id}','${m.nome}')">🔑 Senha</button>
+      </div>
+      <div style="display:flex;gap:8px;">
+        ${bloqueado
+          ?`<button style="flex:1;padding:9px;border-radius:12px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);color:var(--success);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="event.stopPropagation();bloquearMotoboy('${m.id}',false)">✓ Desbloquear</button>`
+          :`<button style="flex:1;padding:9px;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#ef4444;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="event.stopPropagation();bloquearMotoboy('${m.id}',true)">✕ Bloquear</button>`
+        }
+        <button style="flex:1;padding:9px;border-radius:12px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);color:#ef4444;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="event.stopPropagation();confirmarExcluirConta('ej_motoboys','${m.id}','${m.nome}')">🗑️ Excluir</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function nivelPorCorridas(tc){
+  if(tc>=50)return"💎";
+  if(tc>=20)return"🥇";
+  if(tc>=5)return"🥈";
+  return"🥉";
+}
+
+async function bloquearMotoboy(id,bloquear){
+  mostrarLoading(true);
+  try{
+    const dados={bloqueado:bloquear};
+    if(bloquear)dados.online=false;
+    await db.collection("ej_motoboys").doc(id).update(dados);
+    mostrarLoading(false);
+    toast(bloquear?"Motoboy bloqueado!":"Motoboy desbloqueado!");
+    carregarMotoboys();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+
+// ── RESTAURANTES ──
+let _todosRestaurantes=[];
+async function carregarRestaurantes(){
+  const el=document.getElementById("lista-restaurantes");
+  el.innerHTML="<div class='vazio'>Carregando...</div>";
+  try{
+    const snap=await db.collection("ej_restaurantes").orderBy("criadoEm","desc").get();
+    _todosRestaurantes=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderListaRestaurantes(_todosRestaurantes);
+  }catch(e){el.innerHTML="<div class='vazio'>Erro ao carregar</div>";}
+}
+function filtrarListaRestaurantes(){
+  const termo=(document.getElementById("busca-restaurantes").value||"").toLowerCase().trim();
+  if(!termo){renderListaRestaurantes(_todosRestaurantes);return;}
+  const filtrados=_todosRestaurantes.filter(p=>(p.nome||"").toLowerCase().includes(termo)||(p.fone||"").includes(termo));
+  renderListaRestaurantes(filtrados);
+}
+function renderListaRestaurantes(lista){
+  const el=document.getElementById("lista-restaurantes");
+  if(lista.length===0){el.innerHTML="<div class='vazio'>Nenhum restaurante encontrado</div>";return;}
+  el.innerHTML=lista.map(p=>{
+    const pSafe=encodeURIComponent(JSON.stringify(p));
+    return`<div class="card-clicavel" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;cursor:pointer;" onclick="abrirDetalheRestaurante('${pSafe}')">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+        <div style="width:44px;height:44px;border-radius:14px;background:var(--card2);border:2px solid var(--indigo);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${p.foto?`<img src="${p.foto}" style="width:100%;height:100%;object-fit:cover;"/>`:"🏪"}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:2px;">${p.nome||"Sem nome"}</div>
+          <div style="font-size:12px;color:var(--muted);">${p.fone||"Sem cadastro"}</div>
+          <div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${p.endereco||"endereço não informado"}</div>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:rgba(79,70,229,0.12);color:var(--ciano);border:1px solid rgba(79,70,229,0.2);flex-shrink:0;">${p.tipo==="anonimo"?"Sem conta":"Cadastrado"}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <div style="flex:1;background:var(--card2);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">${p.totalPedidos||0}</div><div style="font-size:10px;color:var(--muted);">Pedidos</div></div>
+        <div style="flex:1;background:var(--card2);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:14px;font-weight:700;color:var(--warn);">${p.avaliacao?"⭐ "+parseFloat(p.avaliacao).toFixed(1):"5.0"}</div><div style="font-size:10px;color:var(--muted);">Avaliação</div></div>
+        <div style="flex:1;background:var(--card2);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">${formatarDataSimples(p.criadoEm)}</div><div style="font-size:10px;color:var(--muted);">Cadastro</div></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        ${p.tipo!=="anonimo"?`<button style="flex:1;padding:9px;border-radius:11px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ciano);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="event.stopPropagation();abrirResetSenha('ej_restaurantes','${p.id}','${p.nome}')">🔑 Senha</button>`:""}
+        <button style="flex:1;padding:9px;border-radius:11px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);color:#ef4444;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="event.stopPropagation();confirmarExcluirConta('ej_restaurantes','${p.id}','${p.nome}')">🗑️ Excluir</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function calcIdadePainel(dataNasc){
+  if(!dataNasc)return null;
+  const hoje=new Date(),nasc=new Date(dataNasc+"T00:00:00");
+  let idade=hoje.getFullYear()-nasc.getFullYear();
+  const m=hoje.getMonth()-nasc.getMonth();
+  if(m<0||(m===0&&hoje.getDate()<nasc.getDate()))idade--;
+  return idade;
+}
+</script>
+<script>
+// ── CRÉDITOS (com teto configurável) ──
+let motoboySelecionado=null,creditoValor=10;
+function abrirCredito(id,nome,creditoAtual){
+  motoboySelecionado={id,nome,creditoAtual};
+  creditoValor=10;
+  const modal=document.getElementById("modal-credito");
+  if(!modal){criarModalCredito();}
+  document.getElementById("credito-titulo").textContent="Créditos — "+nome;
+  const teto=configs.tetoCredito||0;
+  document.getElementById("credito-sub").textContent="Saldo atual: R$ "+parseFloat(creditoAtual).toFixed(2).replace(".",",")+(teto>0?" · Teto: R$ "+teto:" · Sem teto");
+  document.getElementById("credito-custom").value="";
+  document.querySelectorAll(".credito-opcao").forEach(o=>o.classList.remove("sel"));
+  document.querySelectorAll(".credito-opcao")[0]?.classList.add("sel");
+  document.getElementById("modal-credito").classList.add("show");
+}
+function selecionarCredito(val,el){
+  creditoValor=val;
+  document.querySelectorAll(".credito-opcao").forEach(o=>o.classList.remove("sel"));
+  el.classList.add("sel");
+  document.getElementById("credito-custom").value="";
+}
+function creditoCustom(val){creditoValor=parseFloat(val)||0;document.querySelectorAll(".credito-opcao").forEach(o=>o.classList.remove("sel"));}
+function fecharCredito(){document.getElementById("modal-credito").classList.remove("show");motoboySelecionado=null;}
+async function confirmarCredito(){
+  if(!motoboySelecionado||creditoValor<=0){toast("Selecione um valor");return;}
+  const teto=configs.tetoCredito||0;
+  let novoCredito=(motoboySelecionado.creditoAtual||0)+creditoValor;
+  if(teto>0&&novoCredito>teto){
+    toast(`Saldo máximo é R$ ${teto}. Ajuste o teto em Configurações se quiser permitir mais.`);
+    novoCredito=teto;
+  }
+  mostrarLoading(true);
+  try{
+    await db.collection("ej_motoboys").doc(motoboySelecionado.id).update({creditos:novoCredito});
+    try{await db.collection("ej_transacoes_creditos").add({motoboyId:motoboySelecionado.id,valor:creditoValor,data:new Date()});}catch(e){}
+    mostrarLoading(false);
+    fecharCredito();
+    toast("R$ "+creditoValor.toFixed(2).replace(".",",")+" adicionado com sucesso!");
+    carregarMotoboys();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+function criarModalCredito(){
+  const div=document.createElement("div");
+  div.innerHTML=`<div id="modal-credito" class="modal-din" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);">
+    <div style="background:var(--card);border-radius:24px 24px 0 0;border-top:1px solid var(--border);padding:24px;padding-bottom:max(40px,calc(var(--sab)+24px));width:100%;animation:slideUp 0.3s ease;">
+      <div id="credito-titulo" style="font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;">Adicionar créditos</div>
+      <div id="credito-sub" style="font-size:13px;color:var(--muted);margin-bottom:20px;">Selecione o valor a adicionar</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
+        <div class="credito-opcao sel" onclick="selecionarCredito(10,this)" style="padding:14px;background:var(--card2);border:2px solid var(--border);border-radius:14px;text-align:center;cursor:pointer;"><div style="font-size:18px;font-weight:800;color:#fff;">R$10</div><div style="font-size:11px;color:var(--muted);">Básico</div></div>
+        <div class="credito-opcao" onclick="selecionarCredito(25,this)" style="padding:14px;background:var(--card2);border:2px solid var(--border);border-radius:14px;text-align:center;cursor:pointer;"><div style="font-size:18px;font-weight:800;color:#fff;">R$25</div><div style="font-size:11px;color:var(--muted);">Médio</div></div>
+        <div class="credito-opcao" onclick="selecionarCredito(50,this)" style="padding:14px;background:var(--card2);border:2px solid var(--border);border-radius:14px;text-align:center;cursor:pointer;"><div style="font-size:18px;font-weight:800;color:#fff;">R$50</div><div style="font-size:11px;color:var(--muted);">Completo</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <div style="font-size:13px;color:var(--muted);flex-shrink:0;">Outro valor:</div>
+        <input id="credito-custom" type="number" placeholder="R$ 0,00" min="0" step="5" oninput="creditoCustom(this.value)" style="flex:1;padding:12px 16px;background:var(--card2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;font-family:inherit;outline:none;"/>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="fecharCredito()" style="flex:1;padding:15px;border-radius:16px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;">Cancelar</button>
+        <button onclick="confirmarCredito()" style="flex:2;padding:15px;border-radius:16px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">✓ Adicionar crédito</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+
+// ── RESET DE SENHA ──
+let resetAlvo=null;
+function abrirResetSenha(colecao,id,nome){
+  resetAlvo={colecao,id,nome};
+  if(!document.getElementById("modal-reset"))criarModalReset();
+  document.getElementById("reset-titulo").textContent="Resetar senha — "+nome;
+  document.getElementById("reset-nova-senha").value="";
+  document.getElementById("modal-reset").classList.add("show");
+}
+function fecharReset(){document.getElementById("modal-reset").classList.remove("show");resetAlvo=null;}
+async function confirmarReset(){
+  const novaSenha=document.getElementById("reset-nova-senha").value.trim();
+  if(!novaSenha||novaSenha.length<4){toast("Digite uma senha de pelo menos 4 dígitos");return;}
+  if(!resetAlvo)return;
+  mostrarLoading(true);
+  try{
+    const hash=hashSenhaPainel(novaSenha);
+    await db.collection(resetAlvo.colecao).doc(resetAlvo.id).update({senhaHash:hash});
+    mostrarLoading(false);
+    fecharReset();
+    toast("Senha redefinida! Informe a nova senha para "+resetAlvo.nome+".");
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+function hashSenhaPainel(s){
+  let h=5381;const str=String(s);
+  for(let i=0;i<str.length;i++){h=((h<<5)+h+str.charCodeAt(i))>>>0;}
+  let h2=52711;for(let i=str.length-1;i>=0;i--){h2=((h2<<5)+h2+str.charCodeAt(i))>>>0;}
+  return"h"+h.toString(36)+h2.toString(36);
+}
+function criarModalReset(){
+  const div=document.createElement("div");
+  div.innerHTML=`<div id="modal-reset" class="modal-din" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);">
+    <div style="background:var(--card);border-radius:24px 24px 0 0;border-top:1px solid var(--border);padding:24px;padding-bottom:max(40px,calc(var(--sab)+24px));width:100%;animation:slideUp 0.3s ease;">
+      <div id="reset-titulo" style="font-size:18px;font-weight:700;color:#fff;margin-bottom:16px;">Resetar senha</div>
+      <input id="reset-nova-senha" type="text" placeholder="Nova senha (mín. 4 dígitos)" style="width:100%;padding:14px 16px;background:var(--card2);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:15px;font-family:inherit;outline:none;margin-bottom:16px;"/>
+      <div style="display:flex;gap:10px;">
+        <button onclick="fecharReset()" style="flex:1;padding:15px;border-radius:16px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;">Cancelar</button>
+        <button onclick="confirmarReset()" style="flex:2;padding:15px;border-radius:16px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">🔑 Redefinir senha</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+</script>
+<script>
+// ── MAPA DE FAIXAS DE PREÇO POR RAIO ──
+let mapaRaios=null,circulosRaios=[],faixasPreco=[],faixaAtivaIdx=null;
+const CORES_FAIXA=["#f59e0b","#60a5fa","#22c55e","#f59e0b","#ef4444","#ec4899","#06b6d4"];
+const CENTRO_PADRAO=[-22.655,-47.059]; // Holambra
+
+function faixasPadrao(){
+  return[
+    {ate:2,precoRestaurante:8,creditoMotoboy:1},
+    {ate:5,precoRestaurante:12,creditoMotoboy:2},
+    {ate:10,precoRestaurante:18,creditoMotoboy:2},
+    {ate:20,precoRestaurante:25,creditoMotoboy:3},
+    {ate:35,precoRestaurante:35,creditoMotoboy:4},
+  ];
+}
+
+async function carregarFaixasPreco(){
+  try{
+    const snap=await db.collection("ej_config").doc("geral").get();
+    if(snap.exists&&snap.data().faixasPreco&&snap.data().faixasPreco.length>0){
+      faixasPreco=snap.data().faixasPreco;
+    }else{
+      faixasPreco=faixasPadrao();
+    }
+  }catch(e){faixasPreco=faixasPadrao();}
+  iniciarMapaRaios();
+  renderFaixasLista();
+}
+
+function iniciarMapaRaios(){
+  setTimeout(()=>{
+    if(!mapaRaios){
+      mapaRaios=L.map("mapa-raios",{zoomControl:true,attributionControl:false});
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18}).addTo(mapaRaios);
+      L.marker(CENTRO_PADRAO,{icon:L.divIcon({html:"📍",className:"",iconSize:[24,24]})}).addTo(mapaRaios);
+      mapaRaios.setView(CENTRO_PADRAO,11);
+    }
+    mapaRaios.invalidateSize();
+    setTimeout(()=>mapaRaios.invalidateSize(),300);
+    desenharCirculos();
+  },150);
+}
+
+function desenharCirculos(){
+  circulosRaios.forEach(c=>mapaRaios.removeLayer(c));
+  circulosRaios=[];
+  // Desenhar do maior pro menor pra não tapar os menores
+  const ordenadas=[...faixasPreco].map((f,i)=>({...f,idx:i})).sort((a,b)=>b.ate-a.ate);
+  ordenadas.forEach(f=>{
+    const cor=CORES_FAIXA[f.idx%CORES_FAIXA.length];
+    const circ=L.circle(CENTRO_PADRAO,{
+      radius:f.ate*1000,
+      color:cor,
+      fillColor:cor,
+      fillOpacity:f.idx===faixaAtivaIdx?0.28:0.12,
+      weight:f.idx===faixaAtivaIdx?3:1.5,
+    }).addTo(mapaRaios);
+    circulosRaios.push(circ);
+  });
+}
+
+function renderFaixasLista(){
+  const el=document.getElementById("lista-faixas-preco");
+  if(!el)return;
+  el.innerHTML=faixasPreco.map((f,i)=>{
+    const cor=CORES_FAIXA[i%CORES_FAIXA.length];
+    return`<div class="raio-faixa-item" onclick="ativarFaixaNoMapa(${i})" style="cursor:pointer;${faixaAtivaIdx===i?'border-color:'+cor+';':''}">
+      <div class="raio-faixa-top">
+        <div class="raio-faixa-cor" style="background:${cor};"></div>
+        <div class="raio-faixa-titulo">Faixa ${i+1} — até ${f.ate} km</div>
+        <button class="raio-faixa-remover" onclick="event.stopPropagation();removerFaixaPreco(${i})">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="font-size:11px;color:var(--muted);font-weight:700;">📍 RAIO (KM)</div>
+          <div style="display:flex;align-items:center;gap:6px;" onclick="event.stopPropagation()">
+            <button class="raio-stepper-btn" onclick="ajustarFaixa(${i},'ate',-1)">−</button>
+            <input class="raio-campo-input" style="width:56px;" type="number" value="${f.ate}" min="0.5" step="0.5" oninput="atualizarFaixaCampo(${i},'ate',this.value)"/>
+            <button class="raio-stepper-btn" onclick="ajustarFaixa(${i},'ate',1)">+</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="font-size:11px;color:var(--muted);font-weight:700;">💵 RESTAURANTE PAGA (R$)</div>
+          <div style="display:flex;align-items:center;gap:6px;" onclick="event.stopPropagation()">
+            <button class="raio-stepper-btn" onclick="ajustarFaixa(${i},'precoRestaurante',-1)">−</button>
+            <input class="raio-campo-input" style="width:56px;" type="number" value="${f.precoRestaurante}" min="0" step="0.5" oninput="atualizarFaixaCampo(${i},'precoRestaurante',this.value)"/>
+            <button class="raio-stepper-btn" onclick="ajustarFaixa(${i},'precoRestaurante',1)">+</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="font-size:11px;color:var(--muted);font-weight:700;">🏍️ MOTOBOY GASTA (créditos)</div>
+          <div style="display:flex;align-items:center;gap:6px;" onclick="event.stopPropagation()">
+            <button class="raio-stepper-btn" onclick="ajustarFaixa(${i},'creditoMotoboy',-1)">−</button>
+            <input class="raio-campo-input" style="width:56px;" type="number" value="${f.creditoMotoboy}" min="0" step="1" oninput="atualizarFaixaCampo(${i},'creditoMotoboy',this.value)"/>
+            <button class="raio-stepper-btn" onclick="ajustarFaixa(${i},'creditoMotoboy',1)">+</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+function ajustarFaixa(idx,campo,delta){
+  const passo=campo==="ate"?0.5:(campo==="creditoMotoboy"?1:0.5);
+  let v=(faixasPreco[idx][campo]||0)+(delta*passo);
+  if(v<0)v=0;
+  faixasPreco[idx][campo]=v;
+  renderFaixasLista();
+  if(campo==="ate")desenharCirculos();
+}
+
+function ativarFaixaNoMapa(idx){
+  faixaAtivaIdx=idx;
+  const f=faixasPreco[idx];
+  document.getElementById("mapa-raio-legenda").textContent=`Faixa ${idx+1}: raio de ${f.ate} km`;
+  desenharCirculos();
+  renderFaixasLista();
+  if(mapaRaios)mapaRaios.setView(CENTRO_PADRAO,Math.max(9,13-Math.floor(f.ate/6)));
+}
+
+function atualizarFaixaCampo(idx,campo,valor){
+  const v=parseFloat(valor);
+  if(isNaN(v))return;
+  faixasPreco[idx][campo]=v;
+  if(campo==="ate"){desenharCirculos();}
+}
+
+function adicionarFaixaPreco(){
+  const maiorAte=faixasPreco.length>0?Math.max(...faixasPreco.map(f=>f.ate)):0;
+  faixasPreco.push({ate:maiorAte+5,precoRestaurante:10,creditoMotoboy:1});
+  renderFaixasLista();
+  desenharCirculos();
+}
+function removerFaixaPreco(idx){
+  faixasPreco.splice(idx,1);
+  if(faixaAtivaIdx===idx)faixaAtivaIdx=null;
+  renderFaixasLista();
+  desenharCirculos();
+}
+
+async function salvarFaixasPreco(){
+  // Ordenar por "ate" crescente antes de salvar (importante pra lógica de cálculo nos apps)
+  faixasPreco.sort((a,b)=>a.ate-b.ate);
+  mostrarLoading(true);
+  try{
+    await db.collection("ej_config").doc("geral").set({faixasPreco},{merge:true});
+    mostrarLoading(false);
+    toast("Tabela de preços por raio salva! ✓");
+    renderFaixasLista();
+    desenharCirculos();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+</script>
+<script>
+// ── AVALIAÇÕES ──
+async function carregarAvaliacoes(){
+  const elAlertas=document.getElementById("lista-alertas-aval");
+  const elLista=document.getElementById("lista-avaliacoes");
+  elAlertas.innerHTML="<div class='vazio'>Carregando...</div>";
+  elLista.innerHTML="<div class='vazio'>Carregando...</div>";
+  try{
+    // Motoboys com avaliação baixa e explicação pendente
+    const snapM=await db.collection("ej_motoboys").where("avaliacao","<",3.5).get();
+    if(snapM.empty){elAlertas.innerHTML="<div class='vazio'>Nenhum alerta no momento</div>";}
+    else{
+      elAlertas.innerHTML=snapM.docs.map(d=>{
+        const m=d.data();
+        return`<div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:13px;">
+          <div style="font-size:13px;font-weight:800;color:#ef4444;margin-bottom:4px;">⚠️ ${m.nome} — nota ${parseFloat(m.avaliacao||0).toFixed(1)}</div>
+          ${m.explicacaoAvaliacao?`<div style="font-size:12px;color:var(--text);margin-top:6px;"><b>Explicação do motoboy:</b> ${m.explicacaoAvaliacao}</div>`:`<div style="font-size:12px;color:var(--muted);">Nenhuma explicação enviada ainda.</div>`}
+        </div>`;
+      }).join("");
+    }
+
+    // Últimas entregas concluídas com avaliação/comentário
+    const snapC=await db.collection("ej_pedidos").where("status","==","concluida").orderBy("criadoEm","desc").limit(20).get();
+    const comAval=snapC.docs.filter(d=>d.data().avaliacaoPassageiro||d.data().avaliacaoMotoboy);
+    if(comAval.length===0){elLista.innerHTML="<div class='vazio'>Nenhuma avaliação ainda</div>";}
+    else{
+      elLista.innerHTML=comAval.map(d=>{
+        const c=d.data();
+        return`<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px;">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${formatarData(c.criadoEm)}</div>
+          ${c.avaliacaoPassageiro?`<div style="font-size:13px;color:var(--text);margin-bottom:4px;">👤 Restaurante avaliou motoboy: ${"⭐".repeat(c.avaliacaoPassageiro)} ${c.comentarioPassageiro?"— \""+c.comentarioPassageiro+"\"":""}</div>`:""}
+          ${c.avaliacaoMotoboy?`<div style="font-size:13px;color:var(--text);">🏍️ Motoboy avaliou restaurante: ${"⭐".repeat(c.avaliacaoMotoboy)} ${c.comentarioMotoboy?"— \""+c.comentarioMotoboy+"\"":""}</div>`:""}
+          <button style="margin-top:8px;padding:6px 12px;border-radius:9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#ef4444;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="excluirAvaliacao('${d.id}')">🗑️ Excluir avaliação (injusta)</button>
+        </div>`;
+      }).join("");
+    }
+  }catch(e){elAlertas.innerHTML="<div class='vazio'>Erro ao carregar</div>";elLista.innerHTML="";}
+}
+
+async function excluirAvaliacao(entregaId){
+  mostrarLoading(true);
+  try{
+    await db.collection("ej_pedidos").doc(entregaId).update({
+      avaliacaoPassageiro:firebase.firestore.FieldValue.delete(),
+      comentarioPassageiro:firebase.firestore.FieldValue.delete(),
+      avaliacaoMotoboy:firebase.firestore.FieldValue.delete(),
+      comentarioMotoboy:firebase.firestore.FieldValue.delete()
+    });
+    mostrarLoading(false);
+    toast("Avaliação removida.");
+    carregarAvaliacoes();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+
+// ── RECEITA (baseada em créditos vendidos) ──
+async function carregarReceita(){
+  try{
+    const agora=new Date();
+    const hoje=new Date(agora);hoje.setHours(0,0,0,0);
+    const semana=new Date(agora);semana.setDate(semana.getDate()-7);
+    const mes=new Date(agora);mes.setDate(1);mes.setHours(0,0,0,0);
+
+    let total=0,rHoje=0,rSemana=0,rMes=0;
+    try{
+      const snapT=await db.collection("ej_transacoes_creditos").get();
+      snapT.docs.forEach(d=>{
+        const t=d.data();
+        const v=t.valor||0;
+        const dt=t.data&&t.data.toDate?t.data.toDate():(t.data?new Date(t.data):new Date(0));
+        total+=v;
+        if(dt>=hoje)rHoje+=v;
+        if(dt>=semana)rSemana+=v;
+        if(dt>=mes)rMes+=v;
+      });
+    }catch(e){}
+
+    document.getElementById("rec-total").textContent="R$ "+total.toFixed(2).replace(".",",");
+    document.getElementById("rec-hoje").textContent="R$ "+rHoje.toFixed(2).replace(".",",");
+    document.getElementById("rec-semana").textContent="R$ "+rSemana.toFixed(2).replace(".",",");
+    document.getElementById("rec-mes").textContent="R$ "+rMes.toFixed(2).replace(".",",");
+
+    const snapC=await db.collection("ej_pedidos").where("status","==","concluida").get();
+    document.getElementById("rec-total-entregas").textContent=snapC.size;
+    let totalAval=0,numAval=0;
+    snapC.docs.forEach(d=>{const c=d.data();if(c.avaliacaoPassageiro){totalAval+=c.avaliacaoPassageiro;numAval++;}});
+    document.getElementById("rec-aval-media").textContent=numAval>0?(totalAval/numAval).toFixed(1):"—";
+
+    const snapM=await db.collection("ej_motoboys").get();
+    document.getElementById("rec-total-motoboys").textContent=snapM.size;
+    const snapP=await db.collection("ej_restaurantes").get();
+    document.getElementById("rec-total-restaurantes").textContent=snapP.size;
+  }catch(e){console.error(e);}
+}
+
+// ── CONFIG ──
+async function carregarConfigs(){
+  try{
+    const snap=await db.collection("ej_config").doc("geral").get();
+    if(snap.exists){
+      const d=snap.data();
+      configs={...configs,...d};
+      document.getElementById("toggle-semconta").classList.toggle("on",configs.semconta!==false);
+      document.getElementById("toggle-novomotoboy").classList.toggle("on",configs.novomotoboy!==false);
+      document.getElementById("cfg-teto-credito").value=configs.tetoCredito!==undefined?configs.tetoCredito:200;
+      document.getElementById("cfg-whatsapp").value=configs.whatsappAdmin||"5519982480386";
+      document.getElementById("toggle-cobrancaRestaurante").classList.toggle("on",configs.cobrancaRestaurante===true);
+      document.getElementById("cfg-modelo-cobranca").value=configs.modeloCobranca||"mensalidade";
+      document.getElementById("cfg-valor-mensalidade").value=configs.valorMensalidade!==undefined?configs.valorMensalidade:0;
+      document.getElementById("cfg-alerta-saldo").value=configs.alertaSaldoBaixo!==undefined?configs.alertaSaldoBaixo:10;
+      if(configs.pin)pinAtual=configs.pin;
+    }
+  }catch(e){}
+}
+function toggleConfig(key){
+  const el=document.getElementById("toggle-"+key);
+  const novoVal=!el.classList.contains("on");
+  el.classList.toggle("on",novoVal);
+  configs[key]=novoVal;
+  db.collection("ej_config").doc("geral").set({[key]:novoVal},{merge:true}).catch(()=>{});
+}
+async function salvarConfigCreditos(){
+  mostrarLoading(true);
+  try{
+    const teto=parseFloat(document.getElementById("cfg-teto-credito").value)||0;
+    configs.tetoCredito=teto;
+    await db.collection("ej_config").doc("geral").set({tetoCredito:teto},{merge:true});
+    mostrarLoading(false);toast("Teto de créditos salvo! "+(teto>0?"R$ "+teto:"Sem limite"));
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+async function salvarConfigCobrancaRestaurante(){
+  mostrarLoading(true);
+  try{
+    const dados={
+      modeloCobranca:document.getElementById("cfg-modelo-cobranca").value,
+      valorMensalidade:parseFloat(document.getElementById("cfg-valor-mensalidade").value)||0,
+      alertaSaldoBaixo:parseFloat(document.getElementById("cfg-alerta-saldo").value)||0
+    };
+    Object.assign(configs,dados);
+    await db.collection("ej_config").doc("geral").set(dados,{merge:true});
+    mostrarLoading(false);
+    toast("Configuração de cobrança salva! "+(configs.cobrancaRestaurante?"Cobrança ativa.":"Ainda gratuito para os restaurantes."));
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+async function salvarConfigWhatsapp(){
+  mostrarLoading(true);
+  try{
+    const wa=document.getElementById("cfg-whatsapp").value.trim();
+    if(!wa){mostrarLoading(false);toast("Informe um número válido");return;}
+    configs.whatsappAdmin=wa;
+    await db.collection("ej_config").doc("geral").set({whatsappAdmin:wa},{merge:true});
+    mostrarLoading(false);toast("WhatsApp do admin salvo!");
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+async function alterarPin(){
+  const novoPin=document.getElementById("novo-pin").value;
+  if(!novoPin||novoPin.length<4){toast("PIN deve ter ao menos 4 dígitos");return;}
+  mostrarLoading(true);
+  try{
+    await db.collection("ej_config").doc("geral").set({pin:novoPin},{merge:true});
+    pinAtual=novoPin;
+    localStorage.setItem("ej_admin_pin",novoPin);
+    document.getElementById("novo-pin").value="";
+    mostrarLoading(false);toast("PIN alterado com sucesso!");
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+</script>
+<script>
+// ── EXCLUIR CONTA ──
+let excluirAlvo=null;
+function confirmarExcluirConta(colecao,id,nome){
+  excluirAlvo={colecao,id,nome};
+  if(!document.getElementById("modal-excluir"))criarModalExcluir();
+  document.getElementById("excluir-texto").textContent=`Tem certeza que deseja excluir a conta de ${nome}? Esta ação não pode ser desfeita.`;
+  document.getElementById("modal-excluir").classList.add("show");
+}
+function fecharExcluir(){document.getElementById("modal-excluir").classList.remove("show");excluirAlvo=null;}
+async function executarExclusao(){
+  if(!excluirAlvo)return;
+  mostrarLoading(true);
+  try{
+    await db.collection(excluirAlvo.colecao).doc(excluirAlvo.id).delete();
+    mostrarLoading(false);
+    fecharExcluir();
+    toast("Conta de "+excluirAlvo.nome+" excluída.");
+    if(excluirAlvo.colecao==="ej_motoboys")carregarMotoboys();
+    else carregarRestaurantes();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+function criarModalExcluir(){
+  const div=document.createElement("div");
+  div.innerHTML=`<div id="modal-excluir" class="modal-din" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:24px;">
+    <div style="background:var(--card);border-radius:20px;border:1px solid rgba(239,68,68,0.3);padding:22px;width:100%;max-width:340px;">
+      <div style="font-size:32px;text-align:center;margin-bottom:10px;">⚠️</div>
+      <div style="font-size:16px;font-weight:800;color:#fff;text-align:center;margin-bottom:8px;">Excluir conta</div>
+      <div id="excluir-texto" style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px;line-height:1.5;"></div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="fecharExcluir()" style="flex:1;padding:13px;border-radius:14px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;">Cancelar</button>
+        <button onclick="executarExclusao()" style="flex:1;padding:13px;border-radius:14px;background:#ef4444;border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Excluir</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+
+// ── EDITAR CRÉDITO MANUALMENTE (definir valor exato) ──
+let editarCreditoAlvo=null;
+function abrirEditarCredito(colecao,id,nome,atual){
+  editarCreditoAlvo={colecao,id,nome};
+  if(!document.getElementById("modal-editar-credito"))criarModalEditarCredito();
+  document.getElementById("editar-credito-titulo").textContent="Editar saldo — "+nome;
+  document.getElementById("editar-credito-input").value=atual;
+  document.getElementById("modal-editar-credito").classList.add("show");
+}
+function fecharEditarCredito(){document.getElementById("modal-editar-credito").classList.remove("show");editarCreditoAlvo=null;}
+async function confirmarEditarCredito(){
+  const novoValor=parseFloat(document.getElementById("editar-credito-input").value);
+  if(isNaN(novoValor)||novoValor<0){toast("Digite um valor válido");return;}
+  if(!editarCreditoAlvo)return;
+  const teto=configs.tetoCredito||0;
+  let valorFinal=novoValor;
+  if(teto>0&&valorFinal>teto){toast("Valor maior que o teto (R$ "+teto+"). Ajustando para o teto.");valorFinal=teto;}
+  mostrarLoading(true);
+  try{
+    await db.collection(editarCreditoAlvo.colecao).doc(editarCreditoAlvo.id).update({creditos:valorFinal});
+    mostrarLoading(false);
+    fecharEditarCredito();
+    toast("Saldo definido: R$ "+valorFinal.toFixed(2).replace(".",","));
+    carregarMotoboys();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+function criarModalEditarCredito(){
+  const div=document.createElement("div");
+  div.innerHTML=`<div id="modal-editar-credito" class="modal-din" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);">
+    <div style="background:var(--card);border-radius:24px 24px 0 0;border-top:1px solid var(--border);padding:24px;padding-bottom:max(40px,calc(var(--sab)+24px));width:100%;animation:slideUp 0.3s ease;">
+      <div id="editar-credito-titulo" style="font-size:18px;font-weight:700;color:#fff;margin-bottom:6px;">Editar saldo</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Defina o valor exato do saldo (substitui o atual)</div>
+      <input id="editar-credito-input" type="number" min="0" step="1" style="width:100%;padding:14px 16px;background:var(--card2);border:1px solid var(--border);border-radius:14px;color:var(--text);font-size:20px;font-family:inherit;outline:none;text-align:center;margin-bottom:16px;"/>
+      <div style="display:flex;gap:10px;">
+        <button onclick="fecharEditarCredito()" style="flex:1;padding:15px;border-radius:16px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;">Cancelar</button>
+        <button onclick="confirmarEditarCredito()" style="flex:2;padding:15px;border-radius:16px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">✓ Definir saldo</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+
+// ── RESOLVER ALERTA DE AVALIAÇÃO ──
+async function resolverAlertaAval(motoboyId){
+  mostrarLoading(true);
+  try{
+    await db.collection("ej_motoboys").doc(motoboyId).update({explicacaoAvaliacao:firebase.firestore.FieldValue.delete()});
+    mostrarLoading(false);
+    toast("Alerta marcado como resolvido.");
+    carregarMotoboys();
+    carregarAvaliacoes();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+</script>
+<script>
+// ── DETALHE DA ENTREGA ──
+function abrirDetalheEntrega(cEncoded){
+  const c=JSON.parse(decodeURIComponent(cEncoded));
+  if(!document.getElementById("modal-detalhe-entrega"))criarModalDetalheEntrega();
+  const statusMap={aguardando:"Aguardando motoboy",aceita:"Aceita",a_caminho:"Motoboy a caminho",motoboy_chegou:"Motoboy chegou",concluida:"Concluída",cancelada_cliente:"Cancelada pelo restaurante",cancelada_motoboy:"Cancelada pelo motoboy",cancelada_pagamento_nao_realizado:"Cancelada — pagamento não realizado"};
+  const corpo=document.getElementById("detalhe-entrega-corpo");
+  corpo.innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:11px;">
+      <div style="background:var(--card2);border-radius:13px;padding:12px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">STATUS</div>
+        <div style="font-size:14px;font-weight:700;color:#fff;">${statusMap[c.status]||c.status}</div>
+      </div>
+      <div style="background:var(--card2);border-radius:13px;padding:12px;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">ROTA</div>
+        <div style="font-size:13px;color:var(--text);margin-bottom:4px;">🏪 ${c.restauranteEndereco||c.origem||"—"}</div>
+        <div style="font-size:13px;color:var(--text);">🔴 ${c.destino||"—"}</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div style="flex:1;background:var(--card2);border-radius:13px;padding:12px;"><div style="font-size:11px;color:var(--muted);margin-bottom:3px;">RESTAURANTE</div><div style="font-size:13px;font-weight:700;color:#fff;">${c.clienteNome||"—"}</div><div style="font-size:11px;color:var(--muted);">${c.clienteFone||"—"}</div></div>
+        <div style="flex:1;background:var(--card2);border-radius:13px;padding:12px;"><div style="font-size:11px;color:var(--muted);margin-bottom:3px;">MOTOBOY</div><div style="font-size:13px;font-weight:700;color:#fff;">${c.motoboy?c.motoboy.nome:"—"}</div><div style="font-size:11px;color:var(--muted);">${c.motoboy?c.motoboy.placa:"—"}</div></div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div style="flex:1;background:var(--card2);border-radius:13px;padding:12px;text-align:center;"><div style="font-size:18px;font-weight:900;color:var(--warn);">R$ ${parseFloat(c.valor||c.valorTotal||c.valorPedido||0).toFixed(2).replace(".",",")}</div><div style="font-size:10px;color:var(--muted);">Valor</div></div>
+        <div style="flex:1;background:var(--card2);border-radius:13px;padding:12px;text-align:center;"><div style="font-size:18px;font-weight:900;color:var(--ciano);">${c.distanciaKm||"—"} km</div><div style="font-size:10px;color:var(--muted);">Distância</div></div>
+        <div style="flex:1;background:var(--card2);border-radius:13px;padding:12px;text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">${c.formaPgto||"—"}</div><div style="font-size:10px;color:var(--muted);">Pagamento</div></div>
+      </div>
+      ${c.itensDetalhados&&c.itensDetalhados.length?`<div style="background:var(--card2);border-radius:13px;padding:12px;"><div style="font-size:11px;color:var(--muted);margin-bottom:5px;">ITENS DO PEDIDO</div><div style="font-size:13px;color:var(--text);">${c.itensDetalhados.map(i=>`${i.qtd}x ${i.nome}`).join(", ")}</div></div>`:""}
+      ${c.obs?`<div style="background:rgba(139,92,246,0.06);border:1px dashed var(--border);border-radius:11px;padding:10px 12px;font-size:12px;color:var(--text);">📝 ${c.obs}</div>`:""}
+      ${c.divergenciaChegada||c.divergenciaConclusao?`<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:13px;padding:12px;"><div style="font-size:11px;color:#ef4444;font-weight:800;margin-bottom:5px;">⚠️ DIVERGÊNCIA DE GPS REGISTRADA</div>${c.divergenciaChegada?`<div style="font-size:12px;color:var(--text);margin-bottom:4px;">Chegada: ${c.divergenciaChegada.distanciaM}m de distância — "${c.divergenciaChegada.motivo}"</div>`:""}${c.divergenciaConclusao?`<div style="font-size:12px;color:var(--text);">Conclusão: ${c.divergenciaConclusao.distanciaM}m de distância — "${c.divergenciaConclusao.motivo}"</div>`:""}</div>`:""}
+      ${c.avaliacaoPassageiro?`<div style="background:var(--card2);border-radius:13px;padding:12px;"><div style="font-size:11px;color:var(--muted);margin-bottom:3px;">AVALIAÇÃO DO RESTAURANTE</div><div style="font-size:13px;color:var(--text);">${"⭐".repeat(c.avaliacaoPassageiro)} ${c.comentarioPassageiro?"— "+c.comentarioPassageiro:""}</div></div>`:""}
+      ${c.avaliacaoMotoboy?`<div style="background:var(--card2);border-radius:13px;padding:12px;"><div style="font-size:11px;color:var(--muted);margin-bottom:3px;">AVALIAÇÃO DO MOTOBOY</div><div style="font-size:13px;color:var(--text);">${"⭐".repeat(c.avaliacaoMotoboy)} ${c.comentarioMotoboy?"— "+c.comentarioMotoboy:""}</div></div>`:""}
+      <div style="font-size:11px;color:var(--muted);text-align:center;">${formatarData(c.criadoEm)}</div>
+    </div>`;
+  document.getElementById("modal-detalhe-entrega").classList.add("show");
+}
+function fecharDetalheEntrega(){document.getElementById("modal-detalhe-entrega").classList.remove("show");}
+function criarModalDetalheEntrega(){
+  const div=document.createElement("div");
+  div.innerHTML=`<div id="modal-detalhe-entrega" class="modal-din" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);">
+    <div style="background:var(--card);border-radius:24px 24px 0 0;border-top:1px solid var(--border);padding:22px;padding-bottom:max(30px,calc(var(--sab)+22px));width:100%;max-height:82vh;overflow-y:auto;animation:slideUp 0.3s ease;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:17px;font-weight:800;color:#fff;">Detalhes da entrega</div>
+        <button onclick="fecharDetalheEntrega()" style="background:var(--card2);border:1px solid var(--border);color:var(--roxo-claro);width:32px;height:32px;border-radius:10px;font-size:15px;cursor:pointer;">✕</button>
+      </div>
+      <div id="detalhe-entrega-corpo"></div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+</script>
+<script>
+// ── DETALHE COMPLETO DO MOTOBOY ──
+let _detalheAtual=null;
+async function abrirDetalheMotoboy(mEncoded){
+  const m=JSON.parse(decodeURIComponent(mEncoded));
+  _detalheAtual={tipo:"motoboy",id:m.id,colecao:"ej_motoboys"};
+  if(!document.getElementById("modal-detalhe-pessoa"))criarModalDetalhePessoa();
+  const nivel=nivelPorCorridas(m.totalCorridas||0);
+  const corpo=document.getElementById("detalhe-pessoa-corpo");
+  corpo.innerHTML=`
+    <div style="text-align:center;margin-bottom:18px;">
+      <div style="position:relative;display:inline-block;">
+        <div id="det-foto-prev" style="width:88px;height:88px;border-radius:50%;background:var(--card2);border:3px solid var(--roxo);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 10px;cursor:pointer;" onclick="document.getElementById('inp-foto-det').click()">${m.foto?`<img src="${m.foto}" style="width:100%;height:100%;object-fit:cover;"/>`:"👤"}</div>
+        <div style="position:absolute;bottom:8px;right:-4px;width:26px;height:26px;border-radius:50%;background:var(--roxo);border:2px solid var(--card);display:flex;align-items:center;justify-content:center;font-size:12px;">✏️</div>
+      </div>
+      <input type="file" id="inp-foto-det" accept="image/*" style="display:none;" onchange="processarFotoDetalhe(this)"/>
+      <div style="font-size:19px;font-weight:900;color:#fff;">${nivel} Motoboy</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;">${m.online?"🟢 Online agora":"⚪ Offline"} ${m.bloqueado?"· 🚫 Bloqueado":""}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+      <div style="background:var(--card2);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:800;color:#fff;">${m.totalCorridas||0}</div><div style="font-size:9px;color:var(--muted);">Entregas</div></div>
+      <div style="background:var(--card2);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:800;color:var(--warn);">${m.avaliacao?parseFloat(m.avaliacao).toFixed(1):"5.0"}</div><div style="font-size:9px;color:var(--muted);">Avaliação</div></div>
+      <div style="background:var(--card2);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:800;color:var(--warn);">R$${parseFloat(m.creditos||0).toFixed(0)}</div><div style="font-size:9px;color:var(--muted);">Créditos</div></div>
+    </div>
+    <div class="detalhe-secao-tit">Dados pessoais (editável)</div>
+    <div class="detalhe-info-card" style="padding:12px;">
+      <div class="detalhe-edit-campo"><div class="detalhe-info-lb">Nome completo</div><input class="campo-input" id="det-nome" value="${m.nome||""}" style="margin-bottom:0;"/></div>
+      <div class="detalhe-edit-campo"><div class="detalhe-info-lb">WhatsApp</div><input class="campo-input" id="det-fone" value="${m.fone||""}" style="margin-bottom:0;"/></div>
+      <div class="detalhe-edit-campo"><div class="detalhe-info-lb">CPF</div><input class="campo-input" id="det-cpf" value="${m.cpf||""}" style="margin-bottom:0;"/></div>
+      <div class="detalhe-info-lb" style="margin-top:8px;">Cadastrado em: ${formatarData(m.criadoEm)}</div>
+    </div>
+    <div class="detalhe-secao-tit">Veículo (editável)</div>
+    <div class="detalhe-info-card" style="padding:12px;">
+      <div class="detalhe-edit-campo"><div class="detalhe-info-lb">Tipo</div>
+        <select class="campo-input" id="det-veiculo" style="margin-bottom:0;">
+          <option value="carro" ${m.veiculo==="carro"?"selected":""}>🚗 Carro</option>
+          <option value="moto" ${m.veiculo==="moto"?"selected":""}>🏍️ Moto</option>
+          <option value="van" ${m.veiculo==="van"?"selected":""}>🚐 Van</option>
+        </select>
+      </div>
+      <div class="detalhe-edit-campo"><div class="detalhe-info-lb">Placa</div><input class="campo-input" id="det-placa" value="${m.placa||""}" style="margin-bottom:0;text-transform:uppercase;"/></div>
+    </div>
+    ${m.explicacaoAvaliacao?`<div class="detalhe-secao-tit">Explicação sobre avaliação baixa</div><div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:13px;padding:12px;font-size:13px;color:var(--text);margin-bottom:14px;">${m.explicacaoAvaliacao}</div>`:""}
+    <button onclick="salvarDetalhePessoa()" style="width:100%;padding:15px;border-radius:16px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin:10px 0;">💾 Salvar alterações</button>
+    <div id="detalhe-hist-entregas" style="margin-top:6px;"><div class="detalhe-secao-tit">Últimas entregas</div><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Carregando...</div></div>
+  `;
+  document.getElementById("modal-detalhe-pessoa").classList.add("show");
+  carregarHistDetalhe("motoboy.id",m.id);
+}
+
+// ── DETALHE COMPLETO DO RESTAURANTE (editável) ──
+async function abrirDetalheRestaurante(pEncoded){
+  const p=JSON.parse(decodeURIComponent(pEncoded));
+  _detalheAtual={tipo:"restaurante",id:p.id,colecao:"ej_restaurantes",enderecoOriginal:p.endereco||""};
+  if(!document.getElementById("modal-detalhe-pessoa"))criarModalDetalhePessoa();
+  const corpo=document.getElementById("detalhe-pessoa-corpo");
+  corpo.innerHTML=`
+    <div style="text-align:center;margin-bottom:18px;">
+      <div style="position:relative;display:inline-block;">
+        <div id="det-foto-prev" style="width:88px;height:88px;border-radius:18px;background:var(--card2);border:3px solid var(--indigo);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 10px;cursor:pointer;" onclick="document.getElementById('inp-foto-det').click()">${p.foto?`<img src="${p.foto}" style="width:100%;height:100%;object-fit:cover;"/>`:"🏪"}</div>
+        <div style="position:absolute;bottom:8px;right:-4px;width:26px;height:26px;border-radius:50%;background:var(--indigo);border:2px solid var(--card);display:flex;align-items:center;justify-content:center;font-size:12px;">✏️</div>
+      </div>
+      <input type="file" id="inp-foto-det" accept="image/*" style="display:none;" onchange="processarFotoDetalhe(this)"/>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;">${p.tipo==="anonimo"?"Sem conta cadastrada":"Conta cadastrada"}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+      <div style="background:var(--card2);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:800;color:#fff;">${p.totalPedidos||0}</div><div style="font-size:9px;color:var(--muted);">Pedidos</div></div>
+      <div style="background:var(--card2);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:800;color:var(--warn);">${p.avaliacao?parseFloat(p.avaliacao).toFixed(1):"5.0"}</div><div style="font-size:9px;color:var(--muted);">Avaliação</div></div>
+      <div style="background:var(--card2);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:14px;font-weight:800;color:var(--ciano);">${formatarDataSimples(p.criadoEm)}</div><div style="font-size:9px;color:var(--muted);">Cadastro</div></div>
+    </div>
+    <div class="detalhe-secao-tit">Dados do restaurante (editável)</div>
+    <div class="detalhe-info-card" style="padding:12px;">
+      <div class="detalhe-edit-campo"><div class="detalhe-info-lb">Nome do restaurante</div><input class="campo-input" id="det-nome" value="${p.nome||""}" style="margin-bottom:0;"/></div>
+      <div class="detalhe-edit-campo"><div class="detalhe-info-lb">WhatsApp</div><input class="campo-input" id="det-fone" value="${p.fone||""}" style="margin-bottom:0;"/></div>
+      <div class="detalhe-edit-campo"><div class="detalhe-info-lb">CNPJ</div><input class="campo-input" id="det-cnpj" value="${p.cnpj||""}" style="margin-bottom:0;"/></div>
+      <div class="detalhe-edit-campo"><div class="detalhe-info-lb">Endereço (recalcula o GPS ao salvar)</div><input class="campo-input" id="det-endereco" value="${p.endereco||""}" style="margin-bottom:0;"/></div>
+      <div class="detalhe-info-lb" style="margin-top:8px;">Cadastrado em: ${formatarData(p.criadoEm)}</div>
+    </div>
+    <button onclick="abrirCardapioAdmin('${p.id}','${(p.nome||"").replace(/'/g,"")}')" style="width:100%;padding:13px;border-radius:14px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);color:var(--ciano);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;">🍽️ Ver e editar cardápio (modo fantasma)</button>
+    <button onclick="salvarDetalhePessoa()" style="width:100%;padding:15px;border-radius:16px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;">💾 Salvar alterações</button>
+    <div id="detalhe-hist-entregas" style="margin-top:6px;"><div class="detalhe-secao-tit">Últimos pedidos</div><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Carregando...</div></div>
+  `;
+  document.getElementById("modal-detalhe-pessoa").classList.add("show");
+  carregarHistDetalhe("clienteId",p.id);
+}
+
+let _detalheFotoNova=null;
+function processarFotoDetalhe(inp){
+  const f=inp.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement("canvas");canvas.width=200;canvas.height=200;
+      const cx=canvas.getContext("2d");
+      const scale=Math.max(200/img.naturalWidth,200/img.naturalHeight);
+      const w=img.naturalWidth*scale,h=img.naturalHeight*scale;
+      cx.drawImage(img,(200-w)/2,(200-h)/2,w,h);
+      const url=canvas.toDataURL("image/jpeg",0.8);
+      _detalheFotoNova=url;
+      document.getElementById("det-foto-prev").innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;"/>`;
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(f);
+}
+
+async function salvarDetalhePessoa(){
+  if(!_detalheAtual)return;
+  mostrarLoading(true);
+  try{
+    const dados={
+      nome:document.getElementById("det-nome").value.trim(),
+      fone:document.getElementById("det-fone").value.trim(),
+    };
+    if(_detalheFotoNova)dados.foto=_detalheFotoNova;
+    if(_detalheAtual.tipo==="motoboy"){
+      dados.cpf=document.getElementById("det-cpf").value.trim();
+      dados.veiculo=document.getElementById("det-veiculo").value;
+      dados.placa=document.getElementById("det-placa").value.trim().toUpperCase();
+    }else{
+      dados.cnpj=document.getElementById("det-cnpj").value.trim();
+      const enderecoNovo=document.getElementById("det-endereco").value.trim();
+      if(enderecoNovo&&enderecoNovo!==_detalheAtual.enderecoOriginal){
+        try{
+          const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(enderecoNovo+", SP, Brasil")}&format=json&limit=1`,{headers:{"User-Agent":"EntregaJaAdmin/1.0"}});
+          const geo=await res.json();
+          if(geo&&geo[0]){
+            dados.endereco=enderecoNovo;
+            dados.enderecoLat=parseFloat(geo[0].lat);
+            dados.enderecoLng=parseFloat(geo[0].lon);
+          }else{
+            mostrarLoading(false);
+            toast("Não localizamos esse endereço no mapa. O endereço não foi alterado — ajuste o texto e tente novamente.");
+            return;
+          }
+        }catch(e){mostrarLoading(false);toast("Erro ao verificar o novo endereço.");return;}
+      }
+    }
+    await db.collection(_detalheAtual.colecao).doc(_detalheAtual.id).update(dados);
+    mostrarLoading(false);
+    _detalheFotoNova=null;
+    fecharDetalhePessoa();
+    toast("Dados atualizados com sucesso!");
+    if(_detalheAtual.tipo==="motoboy")carregarMotoboys();else carregarRestaurantes();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+
+async function carregarHistDetalhe(campo,valor){
+  const el=document.getElementById("detalhe-hist-entregas");
+  try{
+    const snap=await db.collection("ej_pedidos").where(campo,"==",valor).orderBy("criadoEm","desc").limit(10).get();
+    if(snap.empty){el.innerHTML=`<div class="detalhe-secao-tit">Últimas entregas</div><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Nenhuma entrega ainda</div>`;return;}
+    const itens=snap.docs.map(d=>{
+      const c=d.data();
+      const cor=c.status==="concluida"?"var(--success)":c.status.includes("cancelada")?"var(--danger)":"var(--warn)";
+      return`<div style="background:var(--card2);border-radius:11px;padding:10px 12px;margin-bottom:7px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><div style="font-size:11px;color:${cor};font-weight:700;">${c.status}</div><div style="font-size:10px;color:var(--muted);">${formatarData(c.criadoEm)}</div></div>
+        <div style="font-size:12px;color:var(--text);">${c.destino||"—"}</div>
+      </div>`;
+    }).join("");
+    el.innerHTML=`<div class="detalhe-secao-tit">Últimas entregas</div>${itens}`;
+  }catch(e){el.innerHTML=`<div class="detalhe-secao-tit">Últimas entregas</div><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Erro ao carregar</div>`;}
+}
+
+function fecharDetalhePessoa(){document.getElementById("modal-detalhe-pessoa").classList.remove("show");}
+function criarModalDetalhePessoa(){
+  const div=document.createElement("div");
+  div.innerHTML=`<div id="modal-detalhe-pessoa" class="modal-din" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.9);backdrop-filter:blur(6px);">
+    <div style="position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(var(--sat) + 20px) 18px calc(var(--sab) + 30px);">
+      <button onclick="fecharDetalhePessoa()" style="background:var(--card2);border:1px solid var(--border);color:var(--roxo-claro);width:36px;height:36px;border-radius:11px;font-size:16px;cursor:pointer;margin-bottom:14px;">✕</button>
+      <div id="detalhe-pessoa-corpo"></div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+
+// ── CARDÁPIO EM MODO FANTASMA (ver e editar pratos de qualquer restaurante) ──
+let _cardapioAdminRestId=null,_cardapioAdminCache=[],_categoriasAdminCache=[];
+function abrirCardapioAdmin(restId,restNome){
+  _cardapioAdminRestId=restId;
+  if(!document.getElementById("modal-cardapio-admin"))criarModalCardapioAdmin();
+  document.getElementById("cardapio-admin-titulo").textContent="🍽️ "+(restNome||"Restaurante");
+  document.getElementById("modal-cardapio-admin").classList.add("show");
+  carregarCardapioAdmin();
+}
+function fecharCardapioAdmin(){document.getElementById("modal-cardapio-admin").classList.remove("show");}
+async function carregarCardapioAdmin(){
+  const el=document.getElementById("cardapio-admin-lista");
+  el.innerHTML="<div class='vazio'>Carregando...</div>";
+  try{
+    const [snapCat,snapPratos]=await Promise.all([
+      db.collection("ej_restaurantes").doc(_cardapioAdminRestId).collection("categorias").orderBy("ordem").get(),
+      db.collection("ej_restaurantes").doc(_cardapioAdminRestId).collection("pratos").orderBy("criadoEm","desc").get()
+    ]);
+    _categoriasAdminCache=snapCat.docs.map(d=>({id:d.id,...d.data()}));
+    _cardapioAdminCache=snapPratos.docs.map(d=>({id:d.id,...d.data()}));
+    if(_cardapioAdminCache.length===0){el.innerHTML="<div class='vazio'>Este restaurante ainda não cadastrou pratos.</div>";return;}
+    const catNome=id=>_categoriasAdminCache.find(c=>c.id===id)?.nome||"Sem categoria";
+    el.innerHTML=_cardapioAdminCache.map(p=>`
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:9px;display:flex;gap:12px;align-items:center;">
+        <div style="width:52px;height:52px;border-radius:11px;background:var(--card2);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;">${p.foto?`<img src="${p.foto}" style="width:100%;height:100%;object-fit:cover;"/>`:"🍽️"}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#fff;">${p.nome||"--"}</div>
+          <div style="font-size:11px;color:var(--muted);">${catNome(p.categoriaId)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <input class="campo-input" style="width:80px;text-align:right;margin-bottom:4px;padding:8px 10px;font-size:13px;" value="${parseFloat(p.preco||0).toFixed(2)}" id="preco-admin-${p.id}"/>
+          <div style="display:flex;gap:5px;">
+            <button onclick="salvarPrecoAdmin('${p.id}')" style="flex:1;padding:6px;border-radius:8px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:var(--success);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">💾</button>
+            <button onclick="excluirPratoAdmin('${p.id}')" style="flex:1;padding:6px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);color:#ef4444;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">🗑️</button>
+          </div>
+        </div>
+      </div>`).join("");
+  }catch(e){el.innerHTML="<div class='vazio'>Erro ao carregar cardápio.</div>";}
+}
+async function salvarPrecoAdmin(pratoId){
+  const novoPreco=parseFloat(document.getElementById("preco-admin-"+pratoId).value);
+  if(isNaN(novoPreco)||novoPreco<0){toast("Preço inválido");return;}
+  mostrarLoading(true);
+  try{
+    await db.collection("ej_restaurantes").doc(_cardapioAdminRestId).collection("pratos").doc(pratoId).update({preco:novoPreco});
+    mostrarLoading(false);
+    toast("Preço atualizado ✓");
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+async function excluirPratoAdmin(pratoId){
+  if(!confirm("Excluir este prato do cardápio do restaurante?"))return;
+  mostrarLoading(true);
+  try{
+    await db.collection("ej_restaurantes").doc(_cardapioAdminRestId).collection("pratos").doc(pratoId).delete();
+    mostrarLoading(false);
+    toast("Prato excluído.");
+    carregarCardapioAdmin();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+function criarModalCardapioAdmin(){
+  const div=document.createElement("div");
+  div.innerHTML=`<div id="modal-cardapio-admin" class="modal-din" style="position:fixed;inset:0;z-index:9996;background:rgba(0,0,0,0.92);backdrop-filter:blur(6px);">
+    <div style="position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(var(--sat) + 20px) 18px calc(var(--sab) + 30px);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div id="cardapio-admin-titulo" style="font-size:16px;font-weight:800;color:#fff;">🍽️ Cardápio</div>
+        <button onclick="fecharCardapioAdmin()" style="background:var(--card2);border:1px solid var(--border);color:var(--roxo-claro);width:36px;height:36px;border-radius:11px;font-size:16px;cursor:pointer;">✕</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">Modo fantasma — o restaurante não é avisado que você acessou o cardápio dele. Edite preços ou exclua pratos indevidos aqui.</div>
+      <div id="cardapio-admin-lista"></div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+</script>
+<script>
+// ── EDITAR PERFIL DO ADMIN (nome + foto) ──
+function carregarPerfilAdmin(){
+  const nome=localStorage.getItem("ej_admin_nome")||"Admin";
+  const foto=localStorage.getItem("ej_admin_foto");
+  document.getElementById("admin-nome-header").textContent=nome.split(" ")[0];
+  const av=document.getElementById("admin-av-header");
+  if(av){if(foto)av.innerHTML=`<img src="${foto}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`;else av.textContent="👨‍💼";}
+}
+function abrirEditarAdmin(){
+  if(!document.getElementById("modal-editar-admin"))criarModalEditarAdmin();
+  document.getElementById("editar-admin-nome").value=localStorage.getItem("ej_admin_nome")||"";
+  document.getElementById("modal-editar-admin").classList.add("show");
+}
+function fecharEditarAdmin(){document.getElementById("modal-editar-admin").classList.remove("show");}
+function processarFotoAdmin(inp){
+  const f=inp.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement("canvas");canvas.width=200;canvas.height=200;
+      const cx=canvas.getContext("2d");
+      const scale=Math.max(200/img.naturalWidth,200/img.naturalHeight);
+      const w=img.naturalWidth*scale,h=img.naturalHeight*scale;
+      cx.drawImage(img,(200-w)/2,(200-h)/2,w,h);
+      const url=canvas.toDataURL("image/jpeg",0.8);
+      localStorage.setItem("ej_admin_foto",url);
+      document.getElementById("editar-admin-foto-prev").innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`;
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(f);
+}
+function salvarPerfilAdmin(){
+  const nome=document.getElementById("editar-admin-nome").value.trim();
+  if(!nome){toast("Digite um nome");return;}
+  localStorage.setItem("ej_admin_nome",nome);
+  carregarPerfilAdmin();
+  fecharEditarAdmin();
+  toast("Perfil atualizado!");
+}
+function criarModalEditarAdmin(){
+  const foto=localStorage.getItem("ej_admin_foto");
+  const div=document.createElement("div");
+  div.innerHTML=`<div id="modal-editar-admin" class="modal-din" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);">
+    <div style="background:var(--card);border-radius:24px 24px 0 0;border-top:1px solid var(--border);padding:24px;padding-bottom:max(40px,calc(var(--sab)+24px));width:100%;animation:slideUp 0.3s ease;">
+      <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:18px;">Editar meu perfil</div>
+      <div style="text-align:center;margin-bottom:18px;">
+        <div id="editar-admin-foto-prev" style="width:80px;height:80px;border-radius:50%;background:var(--card2);border:2px solid var(--roxo);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto;cursor:pointer;" onclick="document.getElementById('inp-foto-admin').click()">${foto?`<img src="${foto}" style="width:100%;height:100%;object-fit:cover;"/>`:"👨‍💼"}</div>
+        <input type="file" id="inp-foto-admin" accept="image/*" style="display:none;" onchange="processarFotoAdmin(this)"/>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;">Toque para trocar a foto</div>
+      </div>
+      <input id="editar-admin-nome" class="campo-input" type="text" placeholder="Seu nome" style="margin-bottom:16px;"/>
+      <div style="display:flex;gap:10px;">
+        <button onclick="fecharEditarAdmin()" style="flex:1;padding:15px;border-radius:16px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;">Cancelar</button>
+        <button onclick="salvarPerfilAdmin()" style="flex:2;padding:15px;border-radius:16px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">✓ Salvar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+</script>
+<script>
+// ── EFEITO 3D DE TOQUE (soltar suave) + SOM DE CLIQUE ──
+let _somClickCtx=null;
+function getSomClickCtx(){if(!_somClickCtx)_somClickCtx=new(window.AudioContext||window.webkitAudioContext)();if(_somClickCtx.state==="suspended")_somClickCtx.resume();return _somClickCtx;}
+function somClique(){
+  try{
+    const c=getSomClickCtx(),o=c.createOscillator(),g=c.createGain();
+    o.connect(g);g.connect(c.destination);
+    o.frequency.setValueAtTime(700,c.currentTime);
+    g.gain.setValueAtTime(0,c.currentTime);
+    g.gain.linearRampToValueAtTime(0.15,c.currentTime+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.12);
+    o.start();o.stop(c.currentTime+0.13);
+  }catch(e){}
+}
+document.addEventListener("touchstart",e=>{
+  const card=e.target.closest(".card-clicavel");
+  if(card)card.classList.add("pressionando");
+},{passive:true});
+document.addEventListener("touchend",e=>{
+  document.querySelectorAll(".card-clicavel.pressionando").forEach(c=>{
+    c.classList.remove("pressionando");
+  });
+});
+document.addEventListener("click",e=>{
+  const card=e.target.closest(".card-clicavel");
+  if(card&&!e.target.closest("button"))somClique();
+});
+</script>
+<script>
+// ── PWA (instalação + notificação) ──
+(function(){
+  const logoUrl="https://raw.githubusercontent.com/heitorserra-81/ENTREGA-JA-Restaurante/refs/heads/main/IMG_1104.png";
+  const pwaImg=document.getElementById("pwa-logo-img");
+  if(pwaImg)pwaImg.src=logoUrl;
+  if(document.getElementById("apple-icon"))document.getElementById("apple-icon").href=logoUrl;
+  const m={name:"Entrega Já Painel Admin",short_name:"EJ Admin",start_url:"./",display:"standalone",background_color:"#080f1e",theme_color:"#0f1a2e",lang:"pt-BR",icons:[{src:logoUrl,sizes:"512x512",type:"image/png",purpose:"any maskable"}]};
+  document.getElementById("manifest-link").href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/json"}));
+  // Service Worker desabilitado (evita ficar preso em cache de versões antigas durante desenvolvimento ativo)
+  if("serviceWorker"in navigator){
+    navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.unregister())).catch(()=>{});
+    if(window.caches)caches.keys().then(names=>names.forEach(n=>caches.delete(n))).catch(()=>{});
+  }
+  const dismissed=localStorage.getItem("ej_admin_pwa_ok");
+  const standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.MSStream;
+  let dp=null;
+  window.addEventListener("beforeinstallprompt",e=>{
+    e.preventDefault();dp=e;
+    if(!standalone&&!dismissed)setTimeout(()=>{
+      const b=document.getElementById("pwa-banner");
+      if(b){b.classList.add("show");setTimeout(()=>b.classList.remove("show"),6000);}
+    },2500);
+  });
+  const btnInst=document.getElementById("btn-inst");
+  if(btnInst)btnInst.addEventListener("click",async()=>{
+    if(!dp)return;
+    dp.prompt();
+    const{outcome}=await dp.userChoice;
+    dp=null;fecharPWA();
+    if(outcome==="accepted")localStorage.setItem("ej_admin_pwa_ok","1");
+  });
+  if(isIOS&&!standalone&&!dismissed)setTimeout(()=>{
+    const g=document.getElementById("ios-guide");
+    if(g){g.classList.add("show");setTimeout(()=>g.classList.remove("show"),9000);}
+  },2500);
+})();
+function fecharPWA(){
+  const b=document.getElementById("pwa-banner"),g=document.getElementById("ios-guide");
+  if(b)b.classList.remove("show");
+  if(g)g.classList.remove("show");
+  localStorage.setItem("ej_admin_pwa_ok","1");
+}
+
+// ── NOTIFICAÇÕES (novo pedido / avaliação baixa) ──
+async function pedirNotifAdmin(){try{if("Notification"in window)await Notification.requestPermission();}catch(e){}}
+function notifAdmin(t,b){
+  if(typeof Notification!=="undefined"&&Notification.permission==="granted"){
+    try{new Notification(t,{body:b,tag:"ej-admin",vibrate:[200,100,200]});}catch(e){}
+  }
+}
+// Pede permissão assim que entra no painel
+document.addEventListener("DOMContentLoaded",()=>{setTimeout(()=>{if(sessionStorage.getItem("ej_admin_logado")==="1")pedirNotifAdmin();},3000);});
+</script>
+<script>
+// ── CARDS EXTRAS CUSTOMIZÁVEIS DO DASHBOARD ──
+const CARDS_DASH_DISPONIVEIS=[
+  {id:"entregas_hoje",nome:"Entregas hoje",desc:"Concluídas no dia",icon:"🚗",fixo:true},
+  {id:"creditos_hoje",nome:"Créditos vendidos hoje",desc:"Total vendido aos motoboys",icon:"💰",fixo:true},
+  {id:"motoboys_online",nome:"Motoboys online",desc:"Disponíveis agora",icon:"🏍️",fixo:true},
+  {id:"aguardando",nome:"Aguardando motoboy",desc:"Entregas pendentes",icon:"⏳",fixo:true},
+  {id:"total_motoboys",nome:"Total de motoboys",desc:"Motoboys cadastrados",icon:"🏍️"},
+  {id:"total_restaurantes",nome:"Total de restaurantes",desc:"Restaurantes cadastrados",icon:"🏪"},
+  {id:"entregas_semana",nome:"Entregas da semana",desc:"Total concluído nos últimos 7 dias",icon:"📅"},
+  {id:"receita_semana",nome:"Créditos vendidos na semana",desc:"Total vendido aos motoboys",icon:"💵"},
+  {id:"aval_media",nome:"Avaliação média geral",desc:"Nota média de todas as entregas",icon:"⭐"},
+  {id:"motoboys_bloqueados",nome:"Motoboys bloqueados",desc:"Contas suspensas",icon:"🚫"},
+  {id:"alertas_pendentes",nome:"Alertas de avaliação",desc:"Explicações aguardando revisão",icon:"⚠️"},
+];
+
+function getConfigCardsDash(){
+  try{
+    const s=localStorage.getItem("ej_admin_cards");
+    if(s)return JSON.parse(s);
+  }catch(e){}
+  const def=CARDS_DASH_DISPONIVEIS.map((c,i)=>({id:c.id,ativo:!!c.fixo,tam:c.fixo?2:1,ordem:i}));
+  localStorage.setItem("ej_admin_cards",JSON.stringify(def));
+  return def;
+}
+function saveConfigCardsDash(cards){localStorage.setItem("ej_admin_cards",JSON.stringify(cards));}
+
+async function renderCardsExtrasDash(){
+  const cont=document.getElementById("cards-extras-container");
+  if(!cont)return;
+  const cards=getConfigCardsDash().filter(c=>c.ativo).sort((a,b)=>a.ordem-b.ordem);
+  if(cards.length===0){cont.innerHTML="";return;}
+  const dados=await calcularDadosCardsDash();
+  cont.innerHTML=cards.map((c,i)=>{
+    const info=CARDS_DASH_DISPONIVEIS.find(x=>x.id===c.id);
+    if(!info)return"";
+    const d=dados[c.id]||{val:"--",sub:""};
+    return`<div class="card-widget card-clicavel tam-${c.tam||1}" data-idx="${i}" data-id="${c.id}" ontouchstart="iniciaDragCardDash(event,${i})" ontouchmove="moveDragCardDash(event)" ontouchend="fimDragCardDash(event)">
+      <div class="card-widget-header"><div class="card-widget-titulo">${info.nome}</div><div class="card-widget-icon">${info.icon}</div></div>
+      <div class="card-widget-val">${d.val}</div>
+      <div class="card-widget-sub">${d.sub}</div>
+    </div>`;
+  }).join("");
+}
+
+async function calcularDadosCardsDash(){
+  const dados={};
+  try{
+    const hoje=new Date();hoje.setHours(0,0,0,0);
+
+    const snapM=await db.collection("ej_motoboys").get();
+    dados.total_motoboys={val:snapM.size,sub:"cadastrados"};
+    dados.motoboys_bloqueados={val:snapM.docs.filter(d=>d.data().bloqueado).length,sub:"contas suspensas"};
+    dados.alertas_pendentes={val:snapM.docs.filter(d=>d.data().explicacaoAvaliacao).length,sub:"aguardando revisão"};
+    dados.motoboys_online={val:snapM.docs.filter(d=>d.data().online).length,sub:"disponíveis agora"};
+
+    const snapP=await db.collection("ej_restaurantes").get();
+    dados.total_restaurantes={val:snapP.size,sub:"cadastrados"};
+
+    const snapA=await db.collection("ej_pedidos").where("status","==","aguardando").get();
+    dados.aguardando={val:snapA.size,sub:"entregas pendentes"};
+
+    const snapC=await db.collection("ej_pedidos").where("status","==","concluida").get();
+    const semana=new Date();semana.setDate(semana.getDate()-7);
+    let cSemana=0,cHoje=0,totalAval=0,numAval=0;
+    snapC.docs.forEach(d=>{
+      const c=d.data();
+      const dt=c.criadoEm&&c.criadoEm.toDate?c.criadoEm.toDate():new Date(0);
+      if(dt>=semana)cSemana++;
+      if(dt>=hoje)cHoje++;
+      if(c.avaliacaoPassageiro){totalAval+=c.avaliacaoPassageiro;numAval++;}
+    });
+    dados.entregas_hoje={val:cHoje,sub:"concluídas hoje"};
+    dados.entregas_semana={val:cSemana,sub:"últimos 7 dias"};
+    dados.aval_media={val:numAval>0?(totalAval/numAval).toFixed(1)+" ⭐":"—",sub:"média geral"};
+
+    let receitaSemana=0,receitaHoje=0;
+    try{
+      const snapT=await db.collection("ej_transacoes_creditos").get();
+      snapT.docs.forEach(d=>{
+        const t=d.data();
+        const dt=t.data&&t.data.toDate?t.data.toDate():(t.data?new Date(t.data):new Date(0));
+        if(dt>=semana)receitaSemana+=(t.valor||0);
+        if(dt>=hoje)receitaHoje+=(t.valor||0);
+      });
+    }catch(e){}
+    dados.creditos_hoje={val:"R$ "+receitaHoje.toFixed(2).replace(".",","),sub:"vendidos hoje"};
+    dados.receita_semana={val:"R$ "+receitaSemana.toFixed(2).replace(".",","),sub:"esta semana"};
+  }catch(e){}
+  return dados;
+}
+
+// ── DRAG (segue o dedo, mesmo padrão robusto do motoboy) ──
+let _cdDragTO=null,_cdDragging=false,_cdDragIdx=null,_cdDragEl=null,_cdDragMoved=false;
+let _cdDragStartX=0,_cdDragStartY=0,_cdOffsetX=0,_cdOffsetY=0,_cdPlaceholder=null;
+
+function iniciaDragCardDash(e,idx){
+  const t=e.touches?e.touches[0]:e;
+  _cdDragStartX=t.clientX;_cdDragStartY=t.clientY;_cdDragMoved=false;
+  clearTimeout(_cdDragTO);
+  _cdDragTO=setTimeout(()=>{
+    if(_cdDragMoved)return;
+    _cdDragging=true;_cdDragIdx=idx;
+    _cdDragEl=document.querySelector(`#cards-extras-container .card-widget[data-idx="${idx}"]`);
+    if(!_cdDragEl)return;
+    const r=_cdDragEl.getBoundingClientRect();
+    _cdOffsetX=t.clientX-r.left;_cdOffsetY=t.clientY-r.top;
+    _cdPlaceholder=document.createElement("div");
+    _cdPlaceholder.className="card-widget-placeholder "+_cdDragEl.className.replace("card-widget","").replace("card-clicavel","").trim();
+    _cdPlaceholder.style.width=r.width+"px";
+    _cdPlaceholder.style.height=r.height+"px";
+    _cdDragEl.parentNode.insertBefore(_cdPlaceholder,_cdDragEl);
+    _cdDragEl.style.width=r.width+"px";_cdDragEl.style.height=r.height+"px";
+    _cdDragEl.style.left=r.left+"px";_cdDragEl.style.top=r.top+"px";
+    _cdDragEl.classList.add("drag-ativo");
+    if(navigator.vibrate)navigator.vibrate([50,20,50]);
+  },500);
+}
+function moveDragCardDash(e){
+  const t=e.touches?e.touches[0]:e;
+  if(!_cdDragging){
+    const dx=Math.abs(t.clientX-_cdDragStartX),dy=Math.abs(t.clientY-_cdDragStartY);
+    if(dx>10||dy>10){_cdDragMoved=true;clearTimeout(_cdDragTO);}
+    return;
+  }
+  e.preventDefault();
+  if(!_cdDragEl)return;
+  _cdDragEl.style.left=(t.clientX-_cdOffsetX)+"px";
+  _cdDragEl.style.top=(t.clientY-_cdOffsetY)+"px";
+  const cont=document.getElementById("cards-extras-container");
+  const items=[...cont.querySelectorAll(".card-widget:not(.drag-ativo)")];
+  for(const item of items){
+    const r=item.getBoundingClientRect();
+    if(t.clientX>r.left&&t.clientX<r.right&&t.clientY>r.top&&t.clientY<r.bottom){
+      const rectPh=_cdPlaceholder.getBoundingClientRect();
+      const goingDown=r.top>rectPh.top||(r.top===rectPh.top&&r.left>rectPh.left);
+      if(goingDown)item.after(_cdPlaceholder);else item.before(_cdPlaceholder);
+      break;
+    }
+  }
+}
+function fimDragCardDash(e){
+  clearTimeout(_cdDragTO);
+  if(_cdDragging&&_cdDragEl&&_cdPlaceholder){
+    _cdDragging=false;
+    _cdPlaceholder.replaceWith(_cdDragEl);
+    _cdDragEl.classList.remove("drag-ativo");
+    _cdDragEl.style.position="";_cdDragEl.style.left="";_cdDragEl.style.top="";_cdDragEl.style.width="";_cdDragEl.style.height="";
+    const cont=document.getElementById("cards-extras-container");
+    const novaOrdemIds=[...cont.querySelectorAll(".card-widget")].map(el=>el.dataset.id);
+    const todos=getConfigCardsDash();
+    novaOrdemIds.forEach((id,i)=>{const c=todos.find(x=>x.id===id);if(c)c.ordem=i;});
+    saveConfigCardsDash(todos);
+    if(navigator.vibrate)navigator.vibrate(15);
+    renderCardsExtrasDash();
+  }
+  _cdDragEl=null;_cdPlaceholder=null;_cdDragMoved=false;
+}
+
+// ── MODAL DE CONFIGURAÇÃO DOS CARDS ──
+function abrirConfigCardsDash(){
+  if(!document.getElementById("modal-config-cards"))criarModalConfigCards();
+  renderConfigCardsDashLista();
+  document.getElementById("modal-config-cards").classList.add("show");
+}
+function fecharConfigCardsDash(){
+  document.getElementById("modal-config-cards").classList.remove("show");
+  renderCardsExtrasDash();
+}
+function renderConfigCardsDashLista(){
+  const el=document.getElementById("lista-config-cards-dash");
+  if(!el)return;
+  const cards=getConfigCardsDash();
+  el.innerHTML=CARDS_DASH_DISPONIVEIS.map(info=>{
+    const c=cards.find(x=>x.id===info.id)||{ativo:false,tam:1};
+    return`<div class="config-card-item-dash">
+      <div style="font-size:20px;width:28px;text-align:center;flex-shrink:0;">${info.icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;color:#fff;">${info.nome}</div>
+        <div style="font-size:11px;color:var(--muted);">${info.desc}</div>
+      </div>
+      <div class="config-toggle ${c.ativo?"on":""}" onclick="toggleCardDash('${info.id}')"></div>
+    </div>`;
+  }).join("");
+}
+function toggleCardDash(id){
+  const info=CARDS_DASH_DISPONIVEIS.find(x=>x.id===id);
+  if(info&&info.fixo){toast("Este card é essencial e não pode ser desativado");return;}
+  const cards=getConfigCardsDash();
+  const c=cards.find(x=>x.id===id);
+  if(c){
+    c.ativo=!c.ativo;
+    if(c.ativo&&(c.ordem===undefined))c.ordem=Math.max(0,...cards.map(x=>x.ordem||0))+1;
+    saveConfigCardsDash(cards);
+    renderConfigCardsDashLista();
+  }
+}
+function criarModalConfigCards(){
+  const div=document.createElement("div");
+  div.innerHTML=`<div id="modal-config-cards" class="modal-din" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);">
+    <div style="background:var(--card);border-radius:24px 24px 0 0;border-top:1px solid var(--border);padding:22px;padding-bottom:max(30px,calc(var(--sab)+22px));width:100%;max-height:80vh;overflow-y:auto;animation:slideUp 0.3s ease;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="font-size:17px;font-weight:800;color:#fff;">🧩 Personalizar Dashboard</div>
+        <button onclick="fecharConfigCardsDash()" style="background:var(--card2);border:1px solid var(--border);color:var(--roxo-claro);width:32px;height:32px;border-radius:10px;font-size:15px;cursor:pointer;">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Ative os cards extras que quiser ver no Dashboard. Depois é só segurar e arrastar para reordenar.</div>
+      <div id="lista-config-cards-dash" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+</script>
+<script>
+function abrirEntregasLiveModal(){
+  if(!document.getElementById("modal-live"))criarModalLive();
+  document.getElementById("modal-live").classList.add("show");
+  iniciarLive();
+}
+function fecharEntregasLiveModal(){
+  document.getElementById("modal-live").classList.remove("show");
+  if(unsubLive){unsubLive();unsubLive=null;}
+}
+function criarModalLive(){
+  const div=document.createElement("div");
+  div.innerHTML=`<div id="modal-live" class="modal-din" style="position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,0.9);backdrop-filter:blur(6px);">
+    <div style="position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(var(--sat) + 20px) 18px calc(var(--sab) + 30px);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;"><div style="font-size:16px;font-weight:800;color:#fff;">Entregas em tempo real</div><div class="live-dot">Ao vivo</div></div>
+        <button onclick="fecharEntregasLiveModal()" style="background:var(--card2);border:1px solid var(--border);color:var(--roxo-claro);width:36px;height:36px;border-radius:11px;font-size:16px;cursor:pointer;">✕</button>
+      </div>
+      <div id="lista-live"><div class="vazio">Carregando...</div></div>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+</script>
+<script>
+// ── PERFIS PRONTOS DE PREÇO (calibrados: começa barato, motoboy gasta no máx. 3 créditos) ──
+// Faixas recalibradas cobrindo até 50km (Holambra -> Campinas ~35km, Mogi Guaçu ~40km,
+// com margem para desvios de rota e ida/volta). Motoboy nunca gasta mais de 3 créditos.
+const PERFIS_PRECO={
+  inicial:[
+    {ate:2,precoRestaurante:6,creditoMotoboy:1},
+    {ate:5,precoRestaurante:9,creditoMotoboy:1},
+    {ate:10,precoRestaurante:14,creditoMotoboy:2},
+    {ate:20,precoRestaurante:22,creditoMotoboy:2},
+    {ate:35,precoRestaurante:32,creditoMotoboy:3},
+    {ate:50,precoRestaurante:42,creditoMotoboy:3},
+  ],
+  baixo:[
+    {ate:2,precoRestaurante:7,creditoMotoboy:1},
+    {ate:5,precoRestaurante:10,creditoMotoboy:1},
+    {ate:10,precoRestaurante:16,creditoMotoboy:2},
+    {ate:20,precoRestaurante:25,creditoMotoboy:2},
+    {ate:35,precoRestaurante:36,creditoMotoboy:3},
+    {ate:50,precoRestaurante:47,creditoMotoboy:3},
+  ],
+  medio:[
+    {ate:2,precoRestaurante:8,creditoMotoboy:1},
+    {ate:5,precoRestaurante:12,creditoMotoboy:2},
+    {ate:10,precoRestaurante:18,creditoMotoboy:2},
+    {ate:20,precoRestaurante:28,creditoMotoboy:3},
+    {ate:35,precoRestaurante:40,creditoMotoboy:3},
+    {ate:50,precoRestaurante:52,creditoMotoboy:3},
+  ],
+  altomedio:[
+    {ate:2,precoRestaurante:9,creditoMotoboy:2},
+    {ate:5,precoRestaurante:14,creditoMotoboy:2},
+    {ate:10,precoRestaurante:21,creditoMotoboy:3},
+    {ate:20,precoRestaurante:32,creditoMotoboy:3},
+    {ate:35,precoRestaurante:46,creditoMotoboy:3},
+    {ate:50,precoRestaurante:60,creditoMotoboy:3},
+  ],
+  alto:[
+    {ate:2,precoRestaurante:10,creditoMotoboy:2},
+    {ate:5,precoRestaurante:16,creditoMotoboy:2},
+    {ate:10,precoRestaurante:24,creditoMotoboy:3},
+    {ate:20,precoRestaurante:36,creditoMotoboy:3},
+    {ate:35,precoRestaurante:52,creditoMotoboy:3},
+    {ate:50,precoRestaurante:68,creditoMotoboy:3},
+  ],
+};
+function aplicarPerfilPreco(nome){
+  const perfil=PERFIS_PRECO[nome];
+  if(!perfil)return;
+  faixasPreco=JSON.parse(JSON.stringify(perfil));
+  faixaAtivaIdx=null;
+  renderFaixasLista();
+  desenharCirculos();
+  toast("Perfil aplicado! Toque em 'Salvar tabela de preços' para confirmar.");
+}
+</script>
+
+
+
+
+
+
+
+
+
+</body>
+</html>
