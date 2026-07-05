@@ -38,7 +38,7 @@ input,textarea{-webkit-user-select:text!important;user-select:text!important;}
 #cv{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;display:block;}
 
 /* SPLASH */
-#tela-splash{align-items:center;justify-content:center;gap:20px;position:relative;z-index:1;}
+#tela-splash{align-items:center;justify-content:flex-start;gap:18px;padding-top:max(90px,calc(var(--sat) + 60px));position:relative;z-index:1;}
 .splash-logo{width:130px;height:130px;border-radius:32px;overflow:hidden;box-shadow:0 0 60px rgba(251,191,36,0.5);animation:logoPulse 2s ease-in-out infinite;}
 .splash-logo img{width:100%;height:100%;object-fit:cover;}
 @keyframes logoPulse{0%,100%{box-shadow:0 0 60px rgba(251,191,36,0.5);}50%{box-shadow:0 0 90px rgba(251,191,36,0.7);}}
@@ -312,6 +312,14 @@ input,textarea{-webkit-user-select:text!important;user-select:text!important;}
 
   <!-- DASHBOARD -->
   <div class="aba ativa" id="aba-dashboard"><div style="height:6px;flex-shrink:0;"></div>
+    <button onclick="abrirModalAvisoMassa()" style="width:100%;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:16px;padding:15px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;margin-bottom:12px;box-shadow:0 6px 18px rgba(124,58,237,0.35);">
+      <div style="font-size:22px;">📢</div>
+      <div style="flex:1;text-align:left;">
+        <div style="font-size:14px;font-weight:800;color:#fff;">Enviar aviso em massa</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.8);">Notificação push pra restaurantes, motoboys ou os dois</div>
+      </div>
+      <div style="color:#fff;font-size:18px;">›</div>
+    </button>
     <div id="cards-extras-container"></div>
 
     <button class="card-clicavel" onclick="abrirEntregasLiveModal()" style="width:100%;background:linear-gradient(135deg,rgba(139,92,246,0.12),rgba(56,189,248,0.08));border:1px solid var(--roxo-claro);border-radius:16px;padding:15px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;">
