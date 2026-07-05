@@ -1210,24 +1210,81 @@ async function carregarAvaliacoes(){
           <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${formatarData(c.criadoEm)}</div>
           ${c.avaliacaoPassageiro?`<div style="font-size:13px;color:var(--text);margin-bottom:4px;">👤 Restaurante avaliou motoboy: ${"⭐".repeat(c.avaliacaoPassageiro)} ${c.comentarioPassageiro?"— \""+c.comentarioPassageiro+"\"":""}</div>`:""}
           ${c.avaliacaoMotoboy?`<div style="font-size:13px;color:var(--text);">🏍️ Motoboy avaliou restaurante: ${"⭐".repeat(c.avaliacaoMotoboy)} ${c.comentarioMotoboy?"— \""+c.comentarioMotoboy+"\"":""}</div>`:""}
-          <button style="margin-top:8px;padding:6px 12px;border-radius:9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#ef4444;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="excluirAvaliacao('${d.id}')">🗑️ Excluir avaliação (injusta)</button>
+          <div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;">
+            ${c.avaliacaoPassageiro?`<button style="padding:6px 12px;border-radius:9px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--ciano);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="editarAvaliacao('${d.id}','passageiro')">✏️ Editar nota do motoboy</button>`:""}
+            ${c.avaliacaoMotoboy?`<button style="padding:6px 12px;border-radius:9px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--ciano);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="editarAvaliacao('${d.id}','motoboy')">✏️ Editar nota do restaurante</button>`:""}
+            <button style="padding:6px 12px;border-radius:9px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#ef4444;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="excluirAvaliacao('${d.id}')">🗑️ Excluir (injusta)</button>
+          </div>
         </div>`;
       }).join("");
     }
   }catch(e){elAlertas.innerHTML="<div class='vazio'>Erro ao carregar</div>";elLista.innerHTML="";}
 }
 
+async function recalcularMediaMotoboy(motoboyId){
+  const snap=await db.collection("ej_pedidos").where("motoboy.id","==",motoboyId).get();
+  const notas=snap.docs.map(d=>d.data().avaliacaoPassageiro).filter(n=>n>0);
+  const media=notas.length?notas.reduce((s,n)=>s+n,0)/notas.length:5;
+  await db.collection("ej_motoboys").doc(motoboyId).update({avaliacao:media,totalAvaliacoes:notas.length});
+}
+async function recalcularMediaRestaurante(restId){
+  const snap=await db.collection("ej_pedidos").where("clienteId","==",restId).get();
+  const notas=snap.docs.map(d=>d.data().avaliacaoMotoboy).filter(n=>n>0);
+  const media=notas.length?notas.reduce((s,n)=>s+n,0)/notas.length:5;
+  await db.collection("ej_restaurantes").doc(restId).update({avaliacao:media,totalAvaliacoes:notas.length});
+}
 async function excluirAvaliacao(entregaId){
   mostrarLoading(true);
   try{
+    const doc=await db.collection("ej_pedidos").doc(entregaId).get();
+    const c=doc.exists?doc.data():{};
     await db.collection("ej_pedidos").doc(entregaId).update({
       avaliacaoPassageiro:firebase.firestore.FieldValue.delete(),
       comentarioPassageiro:firebase.firestore.FieldValue.delete(),
       avaliacaoMotoboy:firebase.firestore.FieldValue.delete(),
       comentarioMotoboy:firebase.firestore.FieldValue.delete()
     });
+    if(c.motoboy?.id)await recalcularMediaMotoboy(c.motoboy.id);
+    if(c.clienteId)await recalcularMediaRestaurante(c.clienteId);
     mostrarLoading(false);
-    toast("Avaliação removida.");
+    toast("Avaliação removida e média recalculada.");
+    carregarAvaliacoes();
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+function editarAvaliacao(entregaId,tipo){
+  if(!document.getElementById("modal-editar-aval"))criarModalEditarAval();
+  document.getElementById("modal-editar-aval").dataset.entregaId=entregaId;
+  document.getElementById("modal-editar-aval").dataset.tipo=tipo;
+  document.getElementById("ea-titulo").textContent=tipo==="passageiro"?"Editar nota do motoboy":"Editar nota do restaurante";
+  document.getElementById("modal-editar-aval").classList.add("show");
+}
+function criarModalEditarAval(){
+  const div=document.createElement("div");
+  const estrelas=[1,2,3,4,5].map(n=>`<button onclick="salvarNotaEditada(${n})" style="background:none;border:none;font-size:30px;cursor:pointer;padding:4px;">⭐</button>`).join("");
+  div.innerHTML=`<div class="modal-base" id="modal-editar-aval">
+    <div class="modal-sheet">
+      <div id="ea-titulo" style="font-size:16px;font-weight:800;color:#fff;margin-bottom:4px;text-align:center;">Editar nota</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;text-align:center;">Toque na última estrela que representa a nota correta</div>
+      <div style="display:flex;justify-content:center;gap:2px;margin-bottom:18px;">${estrelas}</div>
+      <button class="btn-cancel" onclick="document.getElementById('modal-editar-aval').classList.remove('show')">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+async function salvarNotaEditada(novaNota){
+  const modal=document.getElementById("modal-editar-aval");
+  const entregaId=modal.dataset.entregaId,tipo=modal.dataset.tipo;
+  modal.classList.remove("show");
+  mostrarLoading(true);
+  try{
+    const campo=tipo==="passageiro"?"avaliacaoPassageiro":"avaliacaoMotoboy";
+    const doc=await db.collection("ej_pedidos").doc(entregaId).get();
+    const c=doc.exists?doc.data():{};
+    await db.collection("ej_pedidos").doc(entregaId).update({[campo]:novaNota});
+    if(tipo==="passageiro"&&c.motoboy?.id)await recalcularMediaMotoboy(c.motoboy.id);
+    if(tipo==="motoboy"&&c.clienteId)await recalcularMediaRestaurante(c.clienteId);
+    mostrarLoading(false);
+    toast("Nota atualizada para "+novaNota+"⭐ e média recalculada.");
     carregarAvaliacoes();
   }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
 }
@@ -1581,6 +1638,7 @@ async function abrirDetalheRestaurante(pEncoded){
       <div class="detalhe-edit-campo"><div class="detalhe-info-lb">Endereço (recalcula o GPS ao salvar)</div><input class="campo-input" id="det-endereco" value="${p.endereco||""}" style="margin-bottom:0;"/></div>
       <div class="detalhe-info-lb" style="margin-top:8px;">Cadastrado em: ${formatarData(p.criadoEm)}</div>
     </div>
+    <button onclick="entrarComoNegocioFantasma('${p.id}')" style="width:100%;padding:14px;border-radius:14px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:10px;">👻 Entrar como este negócio</button>
     <button onclick="abrirCardapioAdmin('${p.id}','${(p.nome||"").replace(/'/g,"")}')" style="width:100%;padding:13px;border-radius:14px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);color:var(--ciano);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;">🍽️ Ver e editar cardápio (modo fantasma)</button>
     <button onclick="salvarDetalhePessoa()" style="width:100%;padding:15px;border-radius:16px;background:linear-gradient(135deg,var(--roxo-escuro),var(--roxo));border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;">💾 Salvar alterações</button>
     <div id="detalhe-hist-entregas" style="margin-top:6px;"><div class="detalhe-secao-tit">Últimos pedidos</div><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Carregando...</div></div>
@@ -1687,6 +1745,11 @@ function criarModalDetalhePessoa(){
 
 // ── CARDÁPIO EM MODO FANTASMA (ver e editar pratos de qualquer restaurante) ──
 let _cardapioAdminRestId=null,_cardapioAdminCache=[],_categoriasAdminCache=[];
+const ADMIN_GHOST_SECRET="ejghost2026serra";
+function entrarComoNegocioFantasma(restId){
+  const url=`https://heitorserra-81.github.io/ENTREGA-JA-Restaurante/?admin_ghost=${restId}&admin_token=${ADMIN_GHOST_SECRET}`;
+  window.open(url,"_blank");
+}
 function abrirCardapioAdmin(restId,restNome){
   _cardapioAdminRestId=restId;
   if(!document.getElementById("modal-cardapio-admin"))criarModalCardapioAdmin();
