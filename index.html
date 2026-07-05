@@ -693,10 +693,10 @@ async function carregarFraudes(){
   try{
     const [snapDiverg,snapMultas]=await Promise.all([
       db.collection("ej_pedidos").orderBy("criadoEm","desc").limit(200).get(),
-      db.collectionGroup("multas").where("status","==","pendente_revisao").get()
+      db.collectionGroup("multas").get()
     ]);
     const divergentes=snapDiverg.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.divergenciaChegada||c.divergenciaConclusao);
-    const multas=snapMultas.docs.map(d=>({id:d.id,pedidoId:d.ref.parent.parent.id,...d.data()}));
+    const multas=snapMultas.docs.map(d=>({id:d.id,pedidoId:d.ref.parent.parent.id,...d.data()})).filter(m=>m.status==="pendente_revisao");
     if(divergentes.length===0&&multas.length===0){el.innerHTML="<div class='vazio'>Nenhuma fraude ou divergência registrada. Tudo limpo por aqui. ✅</div>";return;}
     let html="";
     if(multas.length>0){
@@ -1169,8 +1169,15 @@ async function carregarAvaliacoes(){
     }
 
     // Últimas entregas concluídas com avaliação/comentário
-    const snapC=await db.collection("ej_pedidos").where("status","==","concluida").orderBy("criadoEm","desc").limit(20).get();
-    const comAval=snapC.docs.filter(d=>d.data().avaliacaoPassageiro||d.data().avaliacaoMotoboy);
+    const snapC=await db.collection("ej_pedidos").where("status","==","concluida").limit(500).get();
+    const comAval=snapC.docs
+      .filter(d=>d.data().avaliacaoPassageiro||d.data().avaliacaoMotoboy)
+      .sort((a,b)=>{
+        const ta=a.data().criadoEm&&a.data().criadoEm.toMillis?a.data().criadoEm.toMillis():0;
+        const tb=b.data().criadoEm&&b.data().criadoEm.toMillis?b.data().criadoEm.toMillis():0;
+        return tb-ta;
+      })
+      .slice(0,20);
     if(comAval.length===0){elLista.innerHTML="<div class='vazio'>Nenhuma avaliação ainda</div>";}
     else{
       elLista.innerHTML=comAval.map(d=>{
@@ -1609,9 +1616,14 @@ async function salvarDetalhePessoa(){
 async function carregarHistDetalhe(campo,valor){
   const el=document.getElementById("detalhe-hist-entregas");
   try{
-    const snap=await db.collection("ej_pedidos").where(campo,"==",valor).orderBy("criadoEm","desc").limit(10).get();
-    if(snap.empty){el.innerHTML=`<div class="detalhe-secao-tit">Últimas entregas</div><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Nenhuma entrega ainda</div>`;return;}
-    const itens=snap.docs.map(d=>{
+    const snap=await db.collection("ej_pedidos").where(campo,"==",valor).get();
+    const docsOrdenados=snap.docs.sort((a,b)=>{
+      const ta=a.data().criadoEm&&a.data().criadoEm.toMillis?a.data().criadoEm.toMillis():0;
+      const tb=b.data().criadoEm&&b.data().criadoEm.toMillis?b.data().criadoEm.toMillis():0;
+      return tb-ta;
+    }).slice(0,10);
+    if(docsOrdenados.length===0){el.innerHTML=`<div class="detalhe-secao-tit">Últimas entregas</div><div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Nenhuma entrega ainda</div>`;return;}
+    const itens=docsOrdenados.map(d=>{
       const c=d.data();
       const cor=c.status==="concluida"?"var(--success)":c.status.includes("cancelada")?"var(--danger)":"var(--warn)";
       return`<div style="background:var(--card2);border-radius:11px;padding:10px 12px;margin-bottom:7px;">
