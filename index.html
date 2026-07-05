@@ -140,6 +140,11 @@ input,textarea{-webkit-user-select:text!important;user-select:text!important;}
 .menu-app{font-size:18px;font-weight:900;color:#fff;margin-bottom:4px;}
 .menu-dev-por{font-size:10px;color:var(--muted);margin-bottom:5px;}
 .menu-ret{position:relative;display:inline-block;border-radius:12px;padding:2px;overflow:hidden;}
+.dev-retangulo{position:relative;display:inline-block;border-radius:13px;padding:2px;overflow:hidden;}
+.dev-luz{position:absolute;top:50%;left:50%;width:200%;height:200%;background:conic-gradient(#ef4444,#3b82f6,#fbbf24,#22c55e,#ef4444);animation:gira 2s linear infinite;}
+.dev-inner{position:relative;z-index:1;background:var(--card);border-radius:11px;padding:9px 24px;text-align:center;}
+.dev-por{font-size:11px;color:var(--muted);}
+.dev-nome{font-size:15px;font-weight:800;color:#fbbf24;white-space:nowrap;}
 .menu-ret-luz{position:absolute;top:50%;left:50%;width:200%;height:200%;background:conic-gradient(#ef4444,#60a5fa,#f59e0b,#22c55e,#ef4444);animation:gira 2s linear infinite;}
 .menu-ret-inner{position:relative;z-index:1;background:var(--card2);border-radius:10px;padding:6px 16px;}
 .menu-ret-nome{font-size:12px;font-weight:800;color:var(--roxo-claro);white-space:nowrap;}
@@ -248,12 +253,15 @@ input,textarea{-webkit-user-select:text!important;user-select:text!important;}
 
 <!-- SPLASH -->
 <div class="screen ativo" id="tela-splash">
-  <div class="splash-logo"><img id="logo-splash" src="" alt="Entrega Já Admin"/></div>
-  <div class="splash-title">Entrega Já<br/><span>Painel Admin</span></div>
+  <div class="splash-logo" style="width:170px;height:170px;border-radius:38px;"><img id="logo-splash" src="" alt="Entrega Já Admin"/></div>
+  <div class="splash-title" style="font-size:36px;">Entrega Já<br/><span>Painel Admin</span></div>
   <div class="splash-sub" style="margin-bottom:2px;">Gestão completa do sistema</div>
-  <div class="menu-ret" style="margin-top:2px;">
-    <div class="menu-ret-luz"></div>
-    <div class="menu-ret-inner"><div class="menu-ret-nome">Desenvolvido por Heitor Serra Neto</div></div>
+  <div class="dev-retangulo" style="margin-top:4px;">
+    <div class="dev-luz"></div>
+    <div class="dev-inner">
+      <div class="dev-por">Desenvolvido por</div>
+      <div class="dev-nome">Heitor Serra Neto</div>
+    </div>
   </div>
   <div class="splash-loader"></div>
 </div>
@@ -857,8 +865,8 @@ function renderListaRestaurantes(lista){
       </div>
       <div style="display:flex;gap:8px;margin-bottom:10px;">
         <div style="flex:1;background:var(--card2);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">${p.totalPedidos||0}</div><div style="font-size:10px;color:var(--muted);">Pedidos</div></div>
+        <div style="flex:1;background:var(--card2);border-radius:10px;padding:8px;text-align:center;cursor:pointer;" onclick="event.stopPropagation();abrirEditarCredito('ej_restaurantes','${p.id}','${(p.nome||"").replace(/'/g,"")}',${p.creditos||0})"><div style="font-size:14px;font-weight:700;color:var(--warn);">R$ ${parseFloat(p.creditos||0).toFixed(0)} ✏️</div><div style="font-size:10px;color:var(--muted);">Créditos</div></div>
         <div style="flex:1;background:var(--card2);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:14px;font-weight:700;color:var(--warn);">${p.avaliacao?"⭐ "+parseFloat(p.avaliacao).toFixed(1):"5.0"}</div><div style="font-size:10px;color:var(--muted);">Avaliação</div></div>
-        <div style="flex:1;background:var(--card2);border-radius:10px;padding:8px;text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">${formatarDataSimples(p.criadoEm)}</div><div style="font-size:10px;color:var(--muted);">Cadastro</div></div>
       </div>
       <div style="display:flex;gap:8px;">
         ${p.tipo!=="anonimo"?`<button style="flex:1;padding:9px;border-radius:11px;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);color:var(--ciano);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;" onclick="event.stopPropagation();abrirResetSenha('ej_restaurantes','${p.id}','${p.nome}')">🔑 Senha</button>`:""}
@@ -1517,8 +1525,8 @@ async function abrirDetalheRestaurante(pEncoded){
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
       <div style="background:var(--card2);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:800;color:#fff;">${p.totalPedidos||0}</div><div style="font-size:9px;color:var(--muted);">Pedidos</div></div>
+      <div style="background:var(--card2);border-radius:12px;padding:10px;text-align:center;cursor:pointer;" onclick="abrirEditarCredito('ej_restaurantes','${p.id}','${(p.nome||"").replace(/'/g,"")}',${p.creditos||0})"><div style="font-size:16px;font-weight:800;color:var(--warn);">R$ ${parseFloat(p.creditos||0).toFixed(0)} ✏️</div><div style="font-size:9px;color:var(--muted);">Créditos</div></div>
       <div style="background:var(--card2);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:800;color:var(--warn);">${p.avaliacao?parseFloat(p.avaliacao).toFixed(1):"5.0"}</div><div style="font-size:9px;color:var(--muted);">Avaliação</div></div>
-      <div style="background:var(--card2);border-radius:12px;padding:10px;text-align:center;"><div style="font-size:14px;font-weight:800;color:var(--ciano);">${formatarDataSimples(p.criadoEm)}</div><div style="font-size:9px;color:var(--muted);">Cadastro</div></div>
     </div>
     <div class="detalhe-secao-tit">Dados do restaurante (editável)</div>
     <div class="detalhe-info-card" style="padding:12px;">
