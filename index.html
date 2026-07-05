@@ -421,6 +421,13 @@ input,textarea{-webkit-user-select:text!important;user-select:text!important;}
       </div>
     </div>
     <div class="config-secao">
+      <div class="config-titulo">📢 Avisos e notificações</div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Enviar aviso em massa</div><div class="config-item-sub">Manda uma notificação push pra todos os restaurantes, motoboys, ou os dois</div></div>
+        <button class="btn-salvar-sec" onclick="abrirModalAvisoMassa()">Enviar</button>
+      </div>
+    </div>
+    <div class="config-secao">
       <div class="config-titulo">Cobrança do restaurante</div>
       <div class="config-item">
         <div class="config-item-info"><div class="config-item-titulo">Cobrar dos restaurantes</div><div class="config-item-sub">Hoje é grátis para todos. Ative quando quiser começar a cobrar.</div></div>
@@ -559,10 +566,82 @@ window.OneSignalDeferred=window.OneSignalDeferred||[];
 OneSignalDeferred.push(async function(OS){
   await OS.init({appId:ONESIGNAL_APP_ID});
 });
-// Quando tivermos a REST API Key, essa função dispara o aviso pra todos (chamada de dentro do painel).
-// Por enquanto some com um aviso claro, sem quebrar nada.
+function abrirModalAvisoMassa(){
+  if(!document.getElementById("modal-aviso-massa"))criarModalAvisoMassa();
+  document.getElementById("modal-aviso-massa").classList.add("show");
+}
+function fecharModalAvisoMassa(){document.getElementById("modal-aviso-massa").classList.remove("show");}
+function criarModalAvisoMassa(){
+  const div=document.createElement("div");
+  div.innerHTML=`<div class="modal-base" id="modal-aviso-massa">
+    <div class="modal-sheet">
+      <div style="font-size:17px;font-weight:900;color:#fff;margin-bottom:4px;">📢 Enviar aviso</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Vai chegar como notificação push pra quem tiver o app instalado e com permissão de notificação ativa.</div>
+      <div style="margin-bottom:12px;"><div class="campo-label">Título</div><input class="campo-input" id="am-titulo" type="text" placeholder="Ex: Feriado amanhã" style="margin-bottom:0;"/></div>
+      <div style="margin-bottom:14px;"><div class="campo-label">Mensagem</div><input class="campo-input" id="am-mensagem" type="text" placeholder="Ex: Atendimento especial no feriado" style="margin-bottom:0;"/></div>
+      <div class="campo-label" style="margin-bottom:8px;">Enviar para</div>
+      <div style="display:flex;gap:8px;margin-bottom:18px;">
+        <button class="am-pub-btn ativo" data-pub="todos" onclick="selPublicoAviso(this)" style="flex:1;padding:11px;border-radius:12px;background:rgba(124,58,237,0.15);border:1px solid #7c3aed;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Todos</button>
+        <button class="am-pub-btn" data-pub="restaurantes" onclick="selPublicoAviso(this)" style="flex:1;padding:11px;border-radius:12px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🏪 Restaurantes</button>
+        <button class="am-pub-btn" data-pub="motoboys" onclick="selPublicoAviso(this)" style="flex:1;padding:11px;border-radius:12px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🏍️ Motoboys</button>
+      </div>
+      <button style="width:100%;padding:15px;border-radius:16px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;" onclick="confirmarEnvioAvisoMassa()">📤 Enviar agora</button>
+      <button class="btn-cancel" onclick="fecharModalAvisoMassa()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(div.firstElementChild);
+}
+let _publicoAvisoSel="todos";
+function selPublicoAviso(btn){
+  document.querySelectorAll(".am-pub-btn").forEach(b=>{
+    b.classList.remove("ativo");
+    b.style.background="var(--card2)";b.style.borderColor="var(--border)";b.style.color="var(--muted)";
+  });
+  btn.classList.add("ativo");
+  btn.style.background="rgba(124,58,237,0.15)";btn.style.borderColor="#7c3aed";btn.style.color="#fff";
+  _publicoAvisoSel=btn.dataset.pub;
+}
+async function confirmarEnvioAvisoMassa(){
+  const titulo=document.getElementById("am-titulo").value.trim();
+  const mensagem=document.getElementById("am-mensagem").value.trim();
+  if(!titulo||!mensagem){toast("Preencha título e mensagem");return;}
+  fecharModalAvisoMassa();
+  await enviarAvisoOneSignal(titulo,mensagem,_publicoAvisoSel);
+}
+const ONESIGNAL_REST_KEY="os_v2_app_xejam2xarjbkherzldv5hzkzje75fphuqw4uxufatsritw3wotyhheoiv22myf5fpfzin7znplqiqyyopmecs2aqkckpfph2ctcjpqi";
+// publico: "todos" | "restaurantes" | "motoboys" — busca os IDs reais no Firestore e dispara pra cada um.
 async function enviarAvisoOneSignal(titulo,mensagem,publico){
-  toast("⚠️ Ainda falta a REST API Key do OneSignal pra isso funcionar. Peça pro Heitor configurar.");
+  mostrarLoading(true);
+  try{
+    let ids=[];
+    if(publico==="restaurantes"||publico==="todos"){
+      const snapR=await db.collection("ej_restaurantes").get();
+      ids=ids.concat(snapR.docs.map(d=>d.id));
+    }
+    if(publico==="motoboys"||publico==="todos"){
+      const snapM=await db.collection("ej_motoboys").get();
+      ids=ids.concat(snapM.docs.map(d=>d.id));
+    }
+    if(ids.length===0){mostrarLoading(false);toast("Nenhum destinatário encontrado.");return;}
+    // Limite de 2000 por chamada da API — corta em lotes se precisar
+    const lotes=[];
+    for(let i=0;i<ids.length;i+=2000)lotes.push(ids.slice(i,i+2000));
+    for(const lote of lotes){
+      await fetch("https://api.onesignal.com/notifications",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Basic "+ONESIGNAL_REST_KEY},
+        body:JSON.stringify({
+          app_id:ONESIGNAL_APP_ID,
+          include_aliases:{external_id:lote},
+          target_channel:"push",
+          headings:{en:titulo},
+          contents:{en:mensagem}
+        })
+      });
+    }
+    mostrarLoading(false);
+    toast("📢 Aviso enviado pra "+ids.length+" pessoa(s)!");
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
 }
 const firebaseConfig={apiKey:"AIzaSyAts9fsoZ_GrF3MRHDRlAw61Xti2uBkdnM",authDomain:"staffcheck-d6f20.firebaseapp.com",projectId:"staffcheck-d6f20",storageBucket:"staffcheck-d6f20.firebasestorage.app",messagingSenderId:"1055570421019",appId:"1:1055570421019:web:7b5dcc564bfe1c30189fbe"};
 firebase.initializeApp(firebaseConfig);
