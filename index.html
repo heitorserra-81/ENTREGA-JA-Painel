@@ -405,6 +405,21 @@ input,textarea{-webkit-user-select:text!important;user-select:text!important;}
   <!-- CONFIG -->
   <div class="aba" id="aba-config"><div style="height:6px;flex-shrink:0;"></div>
     <div class="config-secao">
+      <div class="config-titulo">Paradas múltiplas</div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Detecção automática de rota</div><div class="config-item-sub">Quando um motoboy já está em rota, sugere pedidos de outros negócios que estão no caminho, com o quanto ele economiza de km.</div></div>
+        <div class="config-toggle" id="toggle-deteccaoRotaAuto" onclick="toggleConfig('deteccaoRotaAuto')"></div>
+      </div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Desvio máximo aceitável (km)</div><div class="config-item-sub">Só sugere se o desvio da rota atual for menor que isso</div></div>
+        <input class="config-input-inline" id="cfg-desvio-max-km" type="number" value="2" step="0.5" min="0.5"/>
+      </div>
+      <div class="config-item">
+        <div class="config-item-info"><div class="config-item-titulo">Salvar</div></div>
+        <button class="btn-salvar-sec" onclick="salvarConfigRotaAuto()">Salvar</button>
+      </div>
+    </div>
+    <div class="config-secao">
       <div class="config-titulo">Cobrança do restaurante</div>
       <div class="config-item">
         <div class="config-item-info"><div class="config-item-titulo">Cobrar dos restaurantes</div><div class="config-item-sub">Hoje é grátis para todos. Ative quando quiser começar a cobrar.</div></div>
@@ -545,7 +560,7 @@ const db=firebase.firestore();
 const PIN_PADRAO="1234";
 let pinAtual=localStorage.getItem("ej_admin_pin")||PIN_PADRAO;
 let unsubLive=null,filtroCorrente="todas";
-let configs={semconta:true,novomotoboy:true,tetoCredito:200,whatsappAdmin:"5519982480386",cobrancaRestaurante:false,modeloCobranca:"mensalidade",valorMensalidade:0,alertaSaldoBaixo:10};
+let configs={semconta:true,novomotoboy:true,tetoCredito:200,whatsappAdmin:"5519982480386",cobrancaRestaurante:false,modeloCobranca:"mensalidade",valorMensalidade:0,alertaSaldoBaixo:10,deteccaoRotaAuto:false,desvioMaxKm:2};
 
 // ── PARTÍCULAS ──
 (function(){
@@ -848,16 +863,25 @@ function filtrarListaRestaurantes(){
   const filtrados=_todosRestaurantes.filter(p=>(p.nome||"").toLowerCase().includes(termo)||(p.fone||"").includes(termo));
   renderListaRestaurantes(filtrados);
 }
+const RAMOS_NEGOCIO_MAP={
+  restaurante:{nome:"Restaurante",icone:"🍽️"},pizzaria:{nome:"Pizzaria",icone:"🍕"},
+  lanchonete:{nome:"Lanchonete",icone:"🍔"},padaria:{nome:"Padaria/Confeitaria",icone:"🥐"},
+  bar:{nome:"Bar/Boteco",icone:"🍺"},farmacia:{nome:"Farmácia",icone:"💊"},
+  mercado:{nome:"Mercado/Mercearia",icone:"🛒"},roupa:{nome:"Loja de roupa",icone:"👗"},
+  presentes:{nome:"Presentes/Variedades",icone:"🎁"},flores:{nome:"Floricultura",icone:"🌸"},
+  pet:{nome:"Pet shop",icone:"🐾"},outro:{nome:"Outro",icone:"📦"}
+};
 function renderListaRestaurantes(lista){
   const el=document.getElementById("lista-restaurantes");
   if(lista.length===0){el.innerHTML="<div class='vazio'>Nenhum restaurante encontrado</div>";return;}
   el.innerHTML=lista.map(p=>{
     const pSafe=encodeURIComponent(JSON.stringify(p));
+    const ramo=RAMOS_NEGOCIO_MAP[p.ramoNegocio];
     return`<div class="card-clicavel" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;cursor:pointer;" onclick="abrirDetalheRestaurante('${pSafe}')">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-        <div style="width:44px;height:44px;border-radius:14px;background:var(--card2);border:2px solid var(--indigo);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${p.foto?`<img src="${p.foto}" style="width:100%;height:100%;object-fit:cover;"/>`:"🏪"}</div>
+        <div style="width:44px;height:44px;border-radius:14px;background:var(--card2);border:2px solid var(--indigo);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${p.foto?`<img src="${p.foto}" style="width:100%;height:100%;object-fit:cover;"/>`:(ramo?ramo.icone:"🏪")}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:2px;">${p.nome||"Sem nome"}</div>
+          <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:2px;">${p.nome||"Sem nome"}${ramo?` <span style="font-size:10px;font-weight:600;color:var(--ciano);background:rgba(56,189,248,0.1);padding:2px 7px;border-radius:9px;">${ramo.icone} ${ramo.nome}</span>`:""}</div>
           <div style="font-size:12px;color:var(--muted);">${p.fone||"Sem cadastro"}</div>
           <div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${p.endereco||"endereço não informado"}</div>
         </div>
@@ -1260,6 +1284,8 @@ async function carregarConfigs(){
       document.getElementById("cfg-teto-credito").value=configs.tetoCredito!==undefined?configs.tetoCredito:200;
       document.getElementById("cfg-whatsapp").value=configs.whatsappAdmin||"5519982480386";
       document.getElementById("toggle-cobrancaRestaurante").classList.toggle("on",configs.cobrancaRestaurante===true);
+      document.getElementById("toggle-deteccaoRotaAuto").classList.toggle("on",configs.deteccaoRotaAuto===true);
+      document.getElementById("cfg-desvio-max-km").value=configs.desvioMaxKm!==undefined?configs.desvioMaxKm:2;
       document.getElementById("cfg-modelo-cobranca").value=configs.modeloCobranca||"mensalidade";
       document.getElementById("cfg-valor-mensalidade").value=configs.valorMensalidade!==undefined?configs.valorMensalidade:0;
       document.getElementById("cfg-alerta-saldo").value=configs.alertaSaldoBaixo!==undefined?configs.alertaSaldoBaixo:10;
@@ -1282,6 +1308,16 @@ async function salvarConfigCreditos(){
     configs.tetoCredito=teto;
     await db.collection("ej_config").doc("geral").set({tetoCredito:teto},{merge:true});
     mostrarLoading(false);toast("Teto de créditos salvo! "+(teto>0?"R$ "+teto:"Sem limite"));
+  }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
+}
+async function salvarConfigRotaAuto(){
+  mostrarLoading(true);
+  try{
+    const dados={desvioMaxKm:parseFloat(document.getElementById("cfg-desvio-max-km").value)||2};
+    Object.assign(configs,dados);
+    await db.collection("ej_config").doc("geral").set(dados,{merge:true});
+    mostrarLoading(false);
+    toast("Configuração de paradas múltiplas salva! "+(configs.deteccaoRotaAuto?"Detecção automática ativa.":"Detecção automática desligada."));
   }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
 }
 async function salvarConfigCobrancaRestaurante(){
@@ -1520,14 +1556,16 @@ async function abrirDetalheRestaurante(pEncoded){
   const p=JSON.parse(decodeURIComponent(pEncoded));
   _detalheAtual={tipo:"restaurante",id:p.id,colecao:"ej_restaurantes",enderecoOriginal:p.endereco||""};
   if(!document.getElementById("modal-detalhe-pessoa"))criarModalDetalhePessoa();
+  const ramo=RAMOS_NEGOCIO_MAP[p.ramoNegocio];
   const corpo=document.getElementById("detalhe-pessoa-corpo");
   corpo.innerHTML=`
     <div style="text-align:center;margin-bottom:18px;">
       <div style="position:relative;display:inline-block;">
-        <div id="det-foto-prev" style="width:88px;height:88px;border-radius:18px;background:var(--card2);border:3px solid var(--indigo);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 10px;cursor:pointer;" onclick="document.getElementById('inp-foto-det').click()">${p.foto?`<img src="${p.foto}" style="width:100%;height:100%;object-fit:cover;"/>`:"🏪"}</div>
+        <div id="det-foto-prev" style="width:88px;height:88px;border-radius:18px;background:var(--card2);border:3px solid var(--indigo);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 10px;cursor:pointer;" onclick="document.getElementById('inp-foto-det').click()">${p.foto?`<img src="${p.foto}" style="width:100%;height:100%;object-fit:cover;"/>`:(ramo?ramo.icone:"🏪")}</div>
         <div style="position:absolute;bottom:8px;right:-4px;width:26px;height:26px;border-radius:50%;background:var(--indigo);border:2px solid var(--card);display:flex;align-items:center;justify-content:center;font-size:12px;">✏️</div>
       </div>
       <input type="file" id="inp-foto-det" accept="image/*" style="display:none;" onchange="processarFotoDetalhe(this)"/>
+      ${ramo?`<div style="font-size:11px;font-weight:700;color:var(--ciano);background:rgba(56,189,248,0.1);display:inline-block;padding:3px 10px;border-radius:9px;margin-top:2px;">${ramo.icone} ${ramo.nome}</div><br/>`:""}
       <div style="font-size:12px;color:var(--muted);margin-top:2px;">${p.tipo==="anonimo"?"Sem conta cadastrada":"Conta cadastrada"}</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
