@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -552,6 +553,17 @@ document.getElementById("logo-header").src=LOGO_URL;
 document.getElementById("logo-menu").src=LOGO_URL;
 
 // ── FIREBASE ──
+// ── ONESIGNAL (infraestrutura pronta para o botão de aviso em massa, falta a REST API Key) ──
+const ONESIGNAL_APP_ID="b912066a-e08a-42a3-9239-58ebd3e55949";
+window.OneSignalDeferred=window.OneSignalDeferred||[];
+OneSignalDeferred.push(async function(OS){
+  await OS.init({appId:ONESIGNAL_APP_ID});
+});
+// Quando tivermos a REST API Key, essa função dispara o aviso pra todos (chamada de dentro do painel).
+// Por enquanto some com um aviso claro, sem quebrar nada.
+async function enviarAvisoOneSignal(titulo,mensagem,publico){
+  toast("⚠️ Ainda falta a REST API Key do OneSignal pra isso funcionar. Peça pro Heitor configurar.");
+}
 const firebaseConfig={apiKey:"AIzaSyAts9fsoZ_GrF3MRHDRlAw61Xti2uBkdnM",authDomain:"staffcheck-d6f20.firebaseapp.com",projectId:"staffcheck-d6f20",storageBucket:"staffcheck-d6f20.firebasestorage.app",messagingSenderId:"1055570421019",appId:"1:1055570421019:web:7b5dcc564bfe1c30189fbe"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
