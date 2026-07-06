@@ -616,7 +616,7 @@ async function confirmarEnvioAvisoMassa(){
   fecharModalAvisoMassa();
   await enviarAvisoOneSignal(titulo,mensagem,_publicoAvisoSel);
 }
-const ONESIGNAL_REST_KEY="os_v2_app_xejam2xarjbkherzldv5hzkzje75fphuqw4uxufatsritw3wotyhheoiv22myf5fpfzin7znplqiqyyopmecs2aqkckpfph2ctcjpqi";
+const ONESIGNAL_WORKER_URL="https://cold-grass-87eb.heitorserraneto.workers.dev";
 // publico: "todos" | "restaurantes" | "motoboys" — busca os IDs reais no Firestore e dispara pra cada um.
 async function enviarAvisoOneSignal(titulo,mensagem,publico){
   mostrarLoading(true);
@@ -635,16 +635,10 @@ async function enviarAvisoOneSignal(titulo,mensagem,publico){
     const lotes=[];
     for(let i=0;i<ids.length;i+=2000)lotes.push(ids.slice(i,i+2000));
     for(const lote of lotes){
-      await fetch("https://api.onesignal.com/notifications",{
+      await fetch(ONESIGNAL_WORKER_URL,{
         method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":"Basic "+ONESIGNAL_REST_KEY},
-        body:JSON.stringify({
-          app_id:ONESIGNAL_APP_ID,
-          include_aliases:{external_id:lote},
-          target_channel:"push",
-          headings:{en:titulo},
-          contents:{en:mensagem}
-        })
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({externalIds:lote,titulo,mensagem})
       });
     }
     mostrarLoading(false);
