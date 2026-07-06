@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="EJ Painel"/>
-<link rel="manifest" id="manifest-link"/>
+<link rel="manifest" href="./manifest.json"/>
 <link rel="apple-touch-icon" id="apple-icon"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -2015,7 +2015,7 @@ document.addEventListener("click",e=>{
   if(pwaImg)pwaImg.src=logoUrl;
   if(document.getElementById("apple-icon"))document.getElementById("apple-icon").href=logoUrl;
   const m={name:"Entrega Já Painel Admin",short_name:"EJ Admin",start_url:"./",display:"standalone",background_color:"#080f1e",theme_color:"#0f1a2e",lang:"pt-BR",icons:[{src:logoUrl,sizes:"512x512",type:"image/png",purpose:"any maskable"}]};
-  document.getElementById("manifest-link").href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/json"}));
+  // manifest agora e um arquivo estatico real (manifest.json), nao precisa mais gerar blob dinamico
   // Service Worker desabilitado (evita ficar preso em cache de versões antigas durante desenvolvimento ativo)
   if("serviceWorker"in navigator){
     navigator.serviceWorker.getRegistrations().then(regs=>regs.forEach(r=>r.unregister())).catch(()=>{});
