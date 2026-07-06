@@ -572,7 +572,7 @@ document.getElementById("logo-menu").src=LOGO_URL;
 const ONESIGNAL_APP_ID="b912066a-e08a-42a3-9239-58ebd3e55949";
 window.OneSignalDeferred=window.OneSignalDeferred||[];
 OneSignalDeferred.push(async function(OS){
-  await OS.init({appId:ONESIGNAL_APP_ID,safari_web_id:"web.onesignal.auto.487bfeae-71a3-407e-85d8-1b40bd783a80"});
+  await OS.init({appId:ONESIGNAL_APP_ID,safari_web_id:"web.onesignal.auto.487bfeae-71a3-407e-85d8-1b40bd783a80",serviceWorkerPath:"ENTREGA-JA-Painel/OneSignalSDKWorker.js",serviceWorkerParam:{scope:"/ENTREGA-JA-Painel/"}});
 });
 function abrirModalAvisoMassa(){
   if(!document.getElementById("modal-aviso-massa"))criarModalAvisoMassa();
