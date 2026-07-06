@@ -581,20 +581,20 @@ function abrirModalAvisoMassa(){
 function fecharModalAvisoMassa(){document.getElementById("modal-aviso-massa").classList.remove("show");}
 function criarModalAvisoMassa(){
   const div=document.createElement("div");
-  div.innerHTML=`<div class="modal-base" id="modal-aviso-massa">
-    <div class="modal-sheet">
+  div.innerHTML=`<div class="modal-din" id="modal-aviso-massa" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);">
+    <div style="background:var(--card);border-radius:24px 24px 0 0;border-top:1px solid var(--border);padding:24px;padding-bottom:max(40px,calc(var(--sab)+24px));width:100%;animation:slideUp 0.3s ease;">
       <div style="font-size:17px;font-weight:900;color:#fff;margin-bottom:4px;">📢 Enviar aviso</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Vai chegar como notificação push pra quem tiver o app instalado e com permissão de notificação ativa.</div>
-      <div style="margin-bottom:12px;"><div class="campo-label">Título</div><input class="campo-input" id="am-titulo" type="text" placeholder="Ex: Feriado amanhã" style="margin-bottom:0;"/></div>
-      <div style="margin-bottom:14px;"><div class="campo-label">Mensagem</div><input class="campo-input" id="am-mensagem" type="text" placeholder="Ex: Atendimento especial no feriado" style="margin-bottom:0;"/></div>
-      <div class="campo-label" style="margin-bottom:8px;">Enviar para</div>
+      <div style="margin-bottom:12px;"><div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px;">Título</div><input class="campo-input" id="am-titulo" type="text" placeholder="Ex: Feriado amanhã" style="margin-bottom:0;"/></div>
+      <div style="margin-bottom:14px;"><div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px;">Mensagem</div><input class="campo-input" id="am-mensagem" type="text" placeholder="Ex: Atendimento especial no feriado" style="margin-bottom:0;"/></div>
+      <div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px;">Enviar para</div>
       <div style="display:flex;gap:8px;margin-bottom:18px;">
         <button class="am-pub-btn ativo" data-pub="todos" onclick="selPublicoAviso(this)" style="flex:1;padding:11px;border-radius:12px;background:rgba(124,58,237,0.15);border:1px solid #7c3aed;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Todos</button>
         <button class="am-pub-btn" data-pub="restaurantes" onclick="selPublicoAviso(this)" style="flex:1;padding:11px;border-radius:12px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🏪 Restaurantes</button>
         <button class="am-pub-btn" data-pub="motoboys" onclick="selPublicoAviso(this)" style="flex:1;padding:11px;border-radius:12px;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">🏍️ Motoboys</button>
       </div>
       <button style="width:100%;padding:15px;border-radius:16px;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;" onclick="confirmarEnvioAvisoMassa()">📤 Enviar agora</button>
-      <button class="btn-cancel" onclick="fecharModalAvisoMassa()">Cancelar</button>
+      <button onclick="fecharModalAvisoMassa()" style="width:100%;padding:15px;border-radius:16px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;">Cancelar</button>
     </div>
   </div>`;
   document.body.appendChild(div.firstElementChild);
@@ -1360,12 +1360,12 @@ function editarAvaliacao(entregaId,tipo){
 function criarModalEditarAval(){
   const div=document.createElement("div");
   const estrelas=[1,2,3,4,5].map(n=>`<button onclick="salvarNotaEditada(${n})" style="background:none;border:none;font-size:30px;cursor:pointer;padding:4px;">⭐</button>`).join("");
-  div.innerHTML=`<div class="modal-base" id="modal-editar-aval">
-    <div class="modal-sheet">
+  div.innerHTML=`<div class="modal-din" id="modal-editar-aval" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);">
+    <div style="background:var(--card);border-radius:24px 24px 0 0;border-top:1px solid var(--border);padding:24px;padding-bottom:max(40px,calc(var(--sab)+24px));width:100%;animation:slideUp 0.3s ease;">
       <div id="ea-titulo" style="font-size:16px;font-weight:800;color:#fff;margin-bottom:4px;text-align:center;">Editar nota</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:16px;text-align:center;">Toque na última estrela que representa a nota correta</div>
       <div style="display:flex;justify-content:center;gap:2px;margin-bottom:18px;">${estrelas}</div>
-      <button class="btn-cancel" onclick="document.getElementById('modal-editar-aval').classList.remove('show')">Cancelar</button>
+      <button onclick="document.getElementById('modal-editar-aval').classList.remove('show')" style="width:100%;padding:15px;border-radius:16px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;">Cancelar</button>
     </div>
   </div>`;
   document.body.appendChild(div.firstElementChild);
