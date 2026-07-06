@@ -643,6 +643,13 @@ async function enviarAvisoOneSignal(titulo,mensagem,publico){
     }
     mostrarLoading(false);
     toast("📢 Aviso enviado pra "+ids.length+" pessoa(s)!");
+    // Salva o aviso pra aparecer fixo na tela na próxima vez que a pessoa abrir o app (mesmo que tenha perdido o push)
+    try{
+      await db.collection("ej_avisos").add({
+        titulo,mensagem,publico,
+        criadoEm:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }catch(e){}
   }catch(e){mostrarLoading(false);toast("Erro: "+e.message);}
 }
 const firebaseConfig={apiKey:"AIzaSyAts9fsoZ_GrF3MRHDRlAw61Xti2uBkdnM",authDomain:"staffcheck-d6f20.firebaseapp.com",projectId:"staffcheck-d6f20",storageBucket:"staffcheck-d6f20.firebasestorage.app",messagingSenderId:"1055570421019",appId:"1:1055570421019:web:7b5dcc564bfe1c30189fbe"};
