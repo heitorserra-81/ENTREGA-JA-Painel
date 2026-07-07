@@ -634,15 +634,27 @@ async function enviarAvisoOneSignal(titulo,mensagem,publico){
     // Limite de 2000 por chamada da API — corta em lotes se precisar
     const lotes=[];
     for(let i=0;i<ids.length;i+=2000)lotes.push(ids.slice(i,i+2000));
+    let totalRecipients=0,erros=[];
     for(const lote of lotes){
-      await fetch(ONESIGNAL_WORKER_URL,{
+      const res=await fetch(ONESIGNAL_WORKER_URL,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({externalIds:lote,titulo,mensagem})
       });
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok||data.errors){
+        erros.push(JSON.stringify(data.errors||data));
+      }else{
+        totalRecipients+=data.recipients||0;
+      }
     }
     mostrarLoading(false);
-    toast("📢 Aviso enviado pra "+ids.length+" pessoa(s)!");
+    if(erros.length>0){
+      toast("⚠️ Erro do OneSignal: "+erros.join(" | "));
+      console.error("Erro ao enviar aviso:",erros);
+    }else{
+      toast("📢 Aviso enviado! OneSignal confirmou "+totalRecipients+" destinatário(s) reais.");
+    }
     // Salva o aviso pra aparecer fixo na tela na próxima vez que a pessoa abrir o app (mesmo que tenha perdido o push)
     try{
       await db.collection("ej_avisos").add({
