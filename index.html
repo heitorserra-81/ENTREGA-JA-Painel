@@ -26,6 +26,13 @@
   --success:#22c55e;--danger:#ef4444;--warn:#f59e0b;--laranja:#f97316;
   --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
 }
+body.claro{
+  --roxo:#d97706;--roxo-escuro:#92400e;--roxo-claro:#b45309;
+  --indigo:#2563eb;--ciano:#0284c7;
+  --bg:#f7f3ea;--bg2:#f1ece0;--card:#ffffff;--card2:#f1ece0;
+  --border:rgba(180,83,9,0.25);--text:#1f2430;--muted:#6b7280;
+  --success:#16a34a;--danger:#dc2626;--warn:#d97706;--laranja:#ea580c;
+}
 html,body{height:100%;background:var(--bg);font-family:-apple-system,'Helvetica Neue',sans-serif;color:var(--text);overflow:hidden;touch-action:pan-x pan-y;-webkit-user-select:none;user-select:none;}
 input,textarea{-webkit-user-select:text!important;user-select:text!important;}
 .screen{display:none;position:fixed;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;flex-direction:column;}
@@ -293,6 +300,7 @@ input,textarea{-webkit-user-select:text!important;user-select:text!important;}
       </div>
       <img id="logo-header" src="" class="painel-logo-central" alt=""/>
       <div class="painel-badge"><div class="painel-badge-dot"></div>Live</div>
+      <button onclick="alternarTema()" style="background:var(--card2);border:1px solid var(--border);border-radius:12px;width:34px;height:34px;font-size:15px;cursor:pointer;flex-shrink:0;margin:0 8px;position:relative;z-index:1;display:flex;align-items:center;justify-content:center;" id="btn-tema">🌙</button>
       <button class="btn-menu-ham" onclick="abrirMenu()">☰</button>
     </div>
   </div>
@@ -702,6 +710,21 @@ let configs={semconta:true,novomotoboy:true,tetoCredito:200,whatsappAdmin:"55199
 
 // ── INIT (robusto, com múltiplas garantias) ──
 let _appIniciado=false;
+// ── MODO CLARO/ESCURO ──
+function alternarTema(){
+  const claro=document.body.classList.toggle("claro");
+  localStorage.setItem("ejp_tema",claro?"claro":"escuro");
+  document.getElementById("btn-tema").textContent=claro?"☀️":"🌙";
+}
+function aplicarTemaSalvo(){
+  const salvo=localStorage.getItem("ejp_tema");
+  if(salvo==="claro"){
+    document.body.classList.add("claro");
+    const btn=document.getElementById("btn-tema");
+    if(btn)btn.textContent="☀️";
+  }
+}
+aplicarTemaSalvo();
 function _iniciarApp(){
   if(_appIniciado)return;_appIniciado=true;
   const logado=sessionStorage.getItem("ej_admin_logado");
