@@ -622,7 +622,7 @@ async function confirmarEnvioAvisoMassa(){
   fecharModalAvisoMassa();
   await enviarAvisoOneSignal(titulo,mensagem,_publicoAvisoSel);
 }
-const ONESIGNAL_WORKER_URL="https://cold-grass-87eb.heitorserraneto.workers.dev";
+const ONESIGNAL_WORKER_URL="https://plain-dream-1851.heitorserraneto.workers.dev";
 // publico: "todos" | "restaurantes" | "motoboys" — busca os IDs reais no Firestore e dispara pra cada um.
 async function enviarAvisoOneSignal(titulo,mensagem,publico){
   mostrarLoading(true);
